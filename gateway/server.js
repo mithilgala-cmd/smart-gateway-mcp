@@ -170,7 +170,9 @@ async function apiSecurityMiddleware(req, res, next) {
     console.error('Auth & Rate Limiting Middleware Error', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
-}
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'APIShield API Gateway is active and secure.' });
+});
 
 // --- MOCK DOWNSTREAM SERVICES HANDLERS ---
 function handleDownstreamResource(req, res) {

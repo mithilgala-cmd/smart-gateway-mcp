@@ -40,6 +40,26 @@ function App() {
 
   const consoleEndRef = useRef(null);
 
+  // 3D Card Hover Tilt Effect Handlers
+  const handleMouseMove3D = (e) => {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const xc = rect.width / 2;
+    const yc = rect.height / 2;
+    const angleX = (yc - y) / 12; // Max 12 deg tilt
+    const angleY = (x - xc) / 12;
+    card.style.setProperty('--rx', `${angleX}deg`);
+    card.style.setProperty('--ry', `${angleY}deg`);
+  };
+
+  const handleMouseLeave3D = (e) => {
+    const card = e.currentTarget;
+    card.style.setProperty('--rx', '0deg');
+    card.style.setProperty('--ry', '0deg');
+  };
+
   // Auto-scroll console
   useEffect(() => {
     consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -291,7 +311,7 @@ function App() {
       </nav>
 
       {/* Connection Endpoint Configuration drawer (Expandable settings) */}
-      <div className="glass-panel" style={{ padding: '16px', marginBottom: '32px', borderStyle: 'dashed' }}>
+      <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D} style={{ padding: '16px', marginBottom: '32px', borderStyle: 'dashed' }}>
         <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontFamily: 'var(--font-heading)', color: 'var(--accent-cyan)' }}>
           ⚙️ Connection Settings (For local overrides)
         </h4>
@@ -325,7 +345,7 @@ function App() {
           {/* Main Console */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Developer Key Registration */}
-            <div className="glass-panel">
+            <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
               <h3>🔑 Register for API Key</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.95rem' }}>
                 Onboard as a developer. Submitting this form triggers an **n8n workflow** that automatically issues a rate-limited key and stores it in **Redis**.
@@ -395,7 +415,7 @@ function App() {
             </div>
 
             {/* API Endpoint Tester */}
-            <div className="glass-panel">
+            <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
               <h3>📡 Interactive API Gateway Tester</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.95rem' }}>
                 Test your API key against rate-limited gateway proxy endpoints.
@@ -464,7 +484,7 @@ function App() {
 
           {/* Terminal Panel */}
           <div>
-            <div className="glass-panel" style={{ height: '100%', padding: '20px' }}>
+            <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D} style={{ height: '100%', padding: '20px' }}>
               <h3>💻 Live Request Terminal</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.85rem' }}>
                 Monitors logs and events crossing the API Gateway.
@@ -509,19 +529,19 @@ function App() {
         <div>
           {/* Operational Metrics Cards */}
           <div className="metrics-grid">
-            <div className="glass-panel metric-card">
+            <div className="glass-panel metric-card card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
               <span className="metric-label">Total API Traffic</span>
               <div className="metric-value">{metrics.totalRequests}</div>
               <span className="metric-footer">Total hits since deployment</span>
             </div>
             
-            <div className="glass-panel metric-card" style={{ borderColor: 'rgba(239, 68, 68, 0.15)' }}>
+            <div className="glass-panel metric-card rate-limited card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D} style={{ borderColor: 'rgba(239, 68, 68, 0.15)' }}>
               <span className="metric-label" style={{ color: 'var(--danger)' }}>Rate Limits Exceeded (429)</span>
               <div className="metric-value" style={{ color: 'var(--danger)' }}>{metrics.rateLimited}</div>
               <span className="metric-footer">Requests blocked by Redis token-bucket</span>
             </div>
 
-            <div className="glass-panel metric-card" style={{ borderColor: 'rgba(245, 158, 11, 0.15)' }}>
+            <div className="glass-panel metric-card unauthorized card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D} style={{ borderColor: 'rgba(245, 158, 11, 0.15)' }}>
               <span className="metric-label" style={{ color: 'var(--warning)' }}>Authentication Failures (401)</span>
               <div className="metric-value" style={{ color: 'var(--warning)' }}>{metrics.unauthorized}</div>
               <span className="metric-footer">Invalid or missing API key queries</span>
@@ -530,7 +550,7 @@ function App() {
 
           <div className="dashboard-layout">
             {/* Live Traffic Stream */}
-            <div className="glass-panel">
+            <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
               <h3>📈 Recent Gateway Transactions</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.95rem' }}>
                 Real-time transaction log pulling directly from Redis.
@@ -588,7 +608,7 @@ function App() {
             {/* IP Blacklist & Access Control */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {/* Manually Block IP */}
-              <div className="glass-panel">
+              <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
                 <h3>🚫 IP Blacklisting Control</h3>
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.85rem' }}>
                   Block malicious client IPs. Denied IPs receive immediate HTTP 403 Forbidden headers.
@@ -610,7 +630,7 @@ function App() {
               </div>
 
               {/* Active Blacklist View */}
-              <div className="glass-panel">
+              <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
                 <h4>Blacklisted IP Addresses</h4>
                 <div className="data-table-wrapper" style={{ maxHeight: '250px', overflowY: 'auto' }}>
                   <table className="data-table" style={{ fontSize: '0.85rem' }}>
@@ -654,7 +674,7 @@ function App() {
 
       {/* ----------------- TAB: MCP SERVER CONNECT ----------------- */}
       {activeTab === 'mcp' && (
-        <div className="glass-panel docs-block">
+        <div className="glass-panel docs-block card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
           <h3>🔌 Model Context Protocol (MCP) Integration</h3>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
             APIShield exposes an official **MCP Server** that exposes tools for admin orchestration. 
