@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+  labels:
+    app: apishield-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apishield-mcp
+  template:
+    metadata:
+      labels:
+        app: apishield-mcp
+    spec:
+      containers:
+        - name: mcp-server
+          image: apishield-mcp-server:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8001"
+            - name: REDIS_URL
+              value: redis://redis:6379
+            - name: TRANSPORT
+              value: sse
+          ports:
+            - containerPort: 8001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+  labels:
+    app: apishield-mcp
+spec:
+  ports:
+    - port: 8001
+      targetPort: 8001
+  selector:
+    app: apishield-mcp
+  type: LoadBalancer

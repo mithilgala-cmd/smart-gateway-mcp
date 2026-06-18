@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # Caching and Rate-Limiting Database
+  redis:
+    image: redis:7-alpine
+    container_name: apishield-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - apishield-net
+    restart: unless-stopped
+
+  # n8n Relational Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: apishield-postgres
+    environment:
+      POSTGRES_USER: n8n_user
+      POSTGRES_PASSWORD: n8n_password
+      POSTGRES_DB: n8n_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - apishield-net
+    restart: unless-stopped
+
+  # Workflow Automation Engine
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: apishield-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n_db
+      - DB_POSTGRESDB_USER=n8n_user
+      - DB_POSTGRESDB_PASSWORD=n8n_password
+      - N8N_BASIC_AUTH_ACTIVE=false # Disabled auth for easy developer local testing
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - apishield-net
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # API Gateway & Downstream Services
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: apishield-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - apishield-net
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # Custom MCP Admin Server (SSE Mode)
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    container_name: apishield-mcp-server
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - REDIS_URL=redis://redis:6379
+      - TRANSPORT=sse
+    networks:
+      - apishield-net
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # Frontend Dashboard
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: apishield-frontend
+    ports:
+      - "3000:80"
+    networks:
+      - apishield-net
+    depends_on:
+      - gateway
+      - n8n
+    restart: unless-stopped
+
+networks:
+  apishield-net:
+    driver: bridge
+
+volumes:
+  redis_data:
+  postgres_data:
+  n8n_data:

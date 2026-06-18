@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: apishield-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apishield-frontend
+  template:
+    metadata:
+      labels:
+        app: apishield-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: apishield-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    app: apishield-frontend
+spec:
+  ports:
+    - port: 3000
+      targetPort: 80
+  selector:
+    app: apishield-frontend
+  type: LoadBalancer

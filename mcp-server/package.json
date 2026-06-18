@@ -1,0 +1,16 @@
+{
+  "name": "apishield-mcp-server",
+  "version": "1.0.0",
+  "description": "Model Context Protocol Admin Server for API Shield Gateway",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "redis": "^4.6.13"
+  }
+}

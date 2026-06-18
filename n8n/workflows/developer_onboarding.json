@@ -1,0 +1,123 @@
+{
+  "name": "APIShield - Developer Onboarding",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "developer-onboarding",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1ad3c5e8-07e0-4c12-a169-be5a07204fbf",
+      "name": "Webhook Ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst apiKey = 'apishield_' + crypto.randomBytes(16).toString('hex');\n\nreturn [{\n  json: {\n    name: $input.first().json.body.name || 'Anonymous Developer',\n    email: $input.first().json.body.email || 'no-email@provided.com',\n    limit: parseInt($input.first().json.body.limit, 10) || 60,\n    apiKey\n  }\n}];"
+      },
+      "id": "670c5e10-c0b7-4a00-ad05-728b975d403e",
+      "name": "Generate API Key",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gateway:8000/admin/keys",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"name\": \"={{ $json.name }}\",\n  \"limit\": \"={{ $json.limit }}\",\n  \"apiKey\": \"={{ $json.apiKey }}\"\n}",
+        "options": {}
+      },
+      "id": "b3cd355e-2f96-4db6-bc7c-3f81e3271101",
+      "name": "Save to Redis via Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 41,
+      "position": [
+        690,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"success\",\n  \"message\": \"API Key generated successfully.\",\n  \"apiKey\": \"={{ $node['Generate API Key'].json.apiKey }}\",\n  \"limit\": \"={{ $node['Generate API Key'].json.limit }}\",\n  \"name\": \"={{ $node['Generate API Key'].json.name }}\"\n}",
+        "options": {}
+      },
+      "id": "c6204ab1-86e0-47b2-8419-482a4666fcfb",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        910,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "notice": "Onboarding Complete Notification (Slack/Discord/Email). Add your webhook credentials here to notify yourself."
+      },
+      "id": "f55047b1-86e0-47b2-8419-482a4666fcab",
+      "name": "Notification Placeholder",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        910,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Ingest": {
+      "main": [
+        [
+          {
+            "node": "Generate API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate API Key": {
+      "main": [
+        [
+          {
+            "node": "Save to Redis via Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Redis via Gateway": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notification Placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "f784ac51-789a-4c28-98e3-5a028a4c1ea1"
+}

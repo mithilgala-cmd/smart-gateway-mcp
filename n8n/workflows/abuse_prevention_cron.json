@@ -1,0 +1,132 @@
+{
+  "name": "APIShield - Abuse Prevention Cron",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "e8d62635-4cb2-401d-bdff-c01b0f19e25d",
+      "name": "Schedule Trigger (1m)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://gateway:8000/admin/metrics",
+        "options": {}
+      },
+      "id": "c13cd41d-d42a-438b-871d-f8ab92e10fc3",
+      "name": "Get Gateway Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 41,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const metrics = $input.first().json;\nconst recentLogs = metrics.recentLogs || [];\nconst blacklist = new Set(metrics.blacklist || []);\n\n// Count 401/429 errors per IP in the log window\nconst ipCounts = {};\nrecentLogs.forEach(log => {\n  if ((log.status === 401 || log.status === 429) && log.ip) {\n    if (!blacklist.has(log.ip)) {\n      ipCounts[log.ip] = (ipCounts[log.ip] || 0) + 1;\n    }\n  }\n});\n\n// Identify IPs with 5 or more violations in the log window (abusive IPs)\nconst abusiveIps = [];\nfor (const [ip, count] of Object.entries(ipCounts)) {\n  if (count >= 5) {\n    abusiveIps.push({ json: { ip, violationsCount: count } });\n  }\n}\n\nreturn abusiveIps;"
+      },
+      "id": "278c4b10-e017-4828-9ca1-827cb975d40a",
+      "name": "Analyze Abusive IPs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        690,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gateway:8000/admin/blacklist",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"ip\": \"={{ $json.ip }}\",\n  \"block\": true\n}",
+        "options": {}
+      },
+      "id": "f2cd51e0-e17f-474c-83b6-127b975d10fc",
+      "name": "Blacklist IP in Redis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 41,
+      "position": [
+        910,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "notice": "Abusive IP Blocked Alert. Add Slack/Discord/Email notifications here. Blocked: {{ $node['Blacklist IP in Redis'].json.ip }} with {{ $node['Analyze Abusive IPs'].json.violationsCount }} violations."
+      },
+      "id": "a1cd341d-d42a-438b-871d-f8ab92e10fc3",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1130,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (1m)": {
+      "main": [
+        [
+          {
+            "node": "Get Gateway Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Gateway Metrics": {
+      "main": [
+        [
+          {
+            "node": "Analyze Abusive IPs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Abusive IPs": {
+      "main": [
+        [
+          {
+            "node": "Blacklist IP in Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Blacklist IP in Redis": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "e984fc11-827a-4c28-98e3-5a028a4c1ea2"
+}
