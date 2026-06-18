@@ -172,8 +172,8 @@ async function apiSecurityMiddleware(req, res, next) {
   }
 }
 
-// --- MOCK DOWNSTREAM SERVICES ---
-app.get('/downstream/resource', (req, res) => {
+// --- MOCK DOWNSTREAM SERVICES HANDLERS ---
+function handleDownstreamResource(req, res) {
   const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   logRequestTelemetry(ip, '/api/v1/resource', 200, req.developerName);
   res.json({
@@ -186,9 +186,9 @@ app.get('/downstream/resource', (req, res) => {
       endpoints: ['/api/v1/resource', '/api/v1/info']
     }
   });
-});
+}
 
-app.get('/downstream/info', (req, res) => {
+function handleDownstreamInfo(req, res) {
   const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   logRequestTelemetry(ip, '/api/v1/info', 200, req.developerName);
   res.json({
@@ -201,21 +201,16 @@ app.get('/downstream/info', (req, res) => {
       uptime: process.uptime()
     }
   });
-});
+}
+
+// Downstream routes
+app.get('/downstream/resource', handleDownstreamResource);
+app.get('/downstream/info', handleDownstreamInfo);
 
 // --- GATEWAY ROUTES ---
-// Apply IP Blacklist & API Security Middleware to downstream proxies
-app.use('/api/v1', ipBlacklistMiddleware, apiSecurityMiddleware);
-
-// Proxy mappings
-app.get('/api/v1/resource', (req, res) => {
-  // Directly forward to the mock downstream resource handler
-  app._router.handle({ method: 'GET', url: '/downstream/resource' }, req, res);
-});
-
-app.get('/api/v1/info', (req, res) => {
-  app._router.handle({ method: 'GET', url: '/downstream/info' }, req, res);
-});
+// Apply IP Blacklist & API Security Middleware directly to gateway endpoints
+app.get('/api/v1/resource', ipBlacklistMiddleware, apiSecurityMiddleware, handleDownstreamResource);
+app.get('/api/v1/info', ipBlacklistMiddleware, apiSecurityMiddleware, handleDownstreamInfo);
 
 // --- ADMIN & TELEMETRY ROUTES (For visual dashboard) ---
 app.get('/admin/metrics', async (req, res) => {
