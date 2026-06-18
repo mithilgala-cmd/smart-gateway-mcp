@@ -313,7 +313,7 @@ function App() {
               className="form-control" 
               style={{ padding: '8px 12px', fontSize: '0.9rem' }} 
               value={n8nUrl} 
-              onChange={(e) => setn8nUrl(e.target.value)} 
+              onChange={(e) => setN8nUrl(e.target.value)} 
             />
           </div>
         </div>
