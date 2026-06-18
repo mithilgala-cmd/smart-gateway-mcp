@@ -1,0 +1,10 @@
+{
+  "name": "apishield-root",
+  "version": "1.0.0",
+  "description": "Root workspace of APIShield Smart API Gateway",
+  "scripts": {
+    "gateway": "npm --prefix gateway start",
+    "mcp": "npm --prefix mcp-server start",
+    "frontend": "npm --prefix frontend run dev"
+  }
+}
