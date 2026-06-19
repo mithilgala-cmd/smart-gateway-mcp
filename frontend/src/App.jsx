@@ -96,26 +96,6 @@ function App() {
 
   const consoleEndRef = useRef(null);
 
-  // 3D Card Hover Tilt Effect Handlers
-  const handleMouseMove3D = (e) => {
-    const card = e.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const xc = rect.width / 2;
-    const yc = rect.height / 2;
-    const angleX = (yc - y) / 12; // Max 12 deg tilt
-    const angleY = (x - xc) / 12;
-    card.style.setProperty('--rx', `${angleX}deg`);
-    card.style.setProperty('--ry', `${angleY}deg`);
-  };
-
-  const handleMouseLeave3D = (e) => {
-    const card = e.currentTarget;
-    card.style.setProperty('--rx', '0deg');
-    card.style.setProperty('--ry', '0deg');
-  };
-
   // Auto-scroll console
   useEffect(() => {
     consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -205,7 +185,7 @@ function App() {
           body: { error: 'Forbidden', message: 'Your IP address has been blacklisted due to suspicious activity.' }
         });
         triggerMatrixBlink(403);
-        addConsoleLog('BLOCKED', `[Simulated] IP Guard blocked blacklisted request from IP: ${ip}`, 403);
+        addConsoleLog('BLOCKED', `IP Guard blocked blacklisted request from IP: ${ip}`, 403);
         recordRequestTelemetry(403, duration);
         
         setSimulatedLogs(prev => [
@@ -230,7 +210,7 @@ function App() {
           body: { error: 'Unauthorized', message: 'Invalid or inactive API Key.' }
         });
         triggerMatrixBlink(401);
-        addConsoleLog('GET', `[Simulated] Request denied: Invalid API Key provided.`, 401);
+        addConsoleLog('GET', `Request denied: Invalid API Key provided.`, 401);
         recordRequestTelemetry(401, duration);
 
         setSimulatedLogs(prev => [
@@ -283,7 +263,7 @@ function App() {
           }
         });
         triggerMatrixBlink(200);
-        addConsoleLog('GET', `[Simulated] Route ${endpoint} resolved successfully. Tokens left: ${Math.floor(nextTokens)}`, 200);
+        addConsoleLog('GET', `Route ${endpoint} resolved successfully. Tokens left: ${Math.floor(nextTokens)}`, 200);
         recordRequestTelemetry(200, duration);
 
         setSimulatedLogs(prev => [
@@ -309,7 +289,7 @@ function App() {
           body: { error: 'Too Many Requests', message: `Rate limit exceeded. Your limit is ${limit} req/min.` }
         });
         triggerMatrixBlink(429);
-        addConsoleLog('BLOCKED', `[Simulated] Rate-limit breached (429) for developer: ${keyData.name}`, 429);
+        addConsoleLog('BLOCKED', `Rate-limit breached (429) for developer: ${keyData.name}`, 429);
         recordRequestTelemetry(429, duration);
 
         setSimulatedLogs(prev => [
@@ -377,7 +357,7 @@ function App() {
           addConsoleLog('POST', `Simulation fallback. Key registered locally: ${mockKey}`, 200);
         }
       } else {
-        addConsoleLog('POST', `[Simulated] n8n generated key and pushed to Redis: ${mockKey}`, 200);
+        addConsoleLog('POST', `n8n generated key and pushed to Redis: ${mockKey}`, 200);
       }
 
       setGeneratedKey(mockKey);
@@ -551,7 +531,7 @@ function App() {
         setNewBlockIp('');
       }
     } catch (err) {
-      addConsoleLog('SYS', `[Simulated] Added IP ${newBlockIp} to blacklist database.`, 200);
+      addConsoleLog('SYS', `Added IP ${newBlockIp} to blacklist database.`, 200);
       setSimulatedBlacklist(prev => [...prev, newBlockIp]);
       setNewBlockIp('');
     }
@@ -569,7 +549,7 @@ function App() {
         addConsoleLog('SYS', `Successfully unblocked IP: ${ip}`, 200);
       }
     } catch (err) {
-      addConsoleLog('SYS', `[Simulated] Restored network access for IP: ${ip}`, 200);
+      addConsoleLog('SYS', `Restored network access for IP: ${ip}`, 200);
       setSimulatedBlacklist(prev => prev.filter(item => item !== ip));
     }
   };
@@ -601,21 +581,21 @@ function App() {
   return (
     <div className="container">
       {/* Resume Overview Panel */}
-      <div className="glass-panel resume-section" style={{ marginBottom: '24px', position: 'relative' }}>
+      <div className="glass-panel resume-section" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h4 style={{ margin: 0, color: 'var(--accent-cyan)', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            💼 Resume Portfolio Context & Architectural Insights
+          <h4 style={{ margin: 0, color: 'var(--accent-blue)', fontSize: '1rem' }}>
+            💼 Developer Resume Stack & Architectural Framework
           </h4>
           <button 
             className="btn btn-secondary" 
             style={{ padding: '4px 12px', fontSize: '0.75rem' }}
             onClick={() => setShowTechDetails(!showTechDetails)}
           >
-            {showTechDetails ? 'Hide Details' : 'Show Details'}
+            {showTechDetails ? 'Hide Stack Details' : 'Show Stack Details'}
           </button>
         </div>
         {showTechDetails && (
-          <div style={{ marginTop: '16px', fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+          <div style={{ marginTop: '16px', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
             <p style={{ margin: '0 0 12px 0', lineHeight: 1.5 }}>
               This project is a high-performance **Smart API Gateway** microservice pipeline designed to demonstrate fullstack architectural principles in production environments. 
               The backend uses a custom **Redis Lua script** to run atomic token-bucket rate limiting, intercepts traffic through an IP blacklist filter, and connects to an **n8n orchestration workflow** to handle automated developer onboarding and cron-based abuse blocks. It also exposes a custom **Model Context Protocol (MCP) server** for AI-guided devops maintenance.
@@ -637,7 +617,7 @@ function App() {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ margin: 0 }}>APIShield Control Console</h1>
-          <p style={{ margin: 0, color: 'var(--text-dim)', fontSize: '0.9rem', marginTop: '4px' }}>
+          <p style={{ margin: 0, color: 'var(--text-dim)', fontSize: '0.95rem', marginTop: '4px' }}>
             Low-Latency API Gateway Proxy, Caching Rate Limiter, and Dynamic Telemetry Dashboard.
           </p>
         </div>
@@ -656,7 +636,7 @@ function App() {
           </div>
           {!gatewayConnected && (
             <span style={{ fontSize: '0.75rem', color: 'var(--accent-amber)', fontFamily: 'var(--font-mono)' }}>
-              ⚠️ Running in local high-fidelity sandbox simulator (Backend offline/sleeping)
+              ⚠️ Sandbox Mode Active (Local rates client simulation)
             </span>
           )}
         </div>
@@ -676,13 +656,13 @@ function App() {
       </nav>
 
       {/* Connection Drawer */}
-      <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D} style={{ padding: '16px', marginBottom: '32px', borderStyle: 'dashed' }}>
-        <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-cyan)' }}>
-          ⚙️ Live Environment Endpoint Connections
+      <div className="glass-panel" style={{ padding: '16px', marginBottom: '32px', borderStyle: 'dashed' }}>
+        <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>
+          ⚙️ Connection Endpoints (Local/Production Overrides)
         </h4>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
-            <label className="form-label">Gateway Service Engine URL</label>
+            <label className="form-label">Gateway Server API URL</label>
             <input 
               type="text" 
               className="form-control" 
@@ -692,7 +672,7 @@ function App() {
             />
           </div>
           <div style={{ flex: 1, minWidth: '250px' }}>
-            <label className="form-label">n8n Registration Webhook Endpoint</label>
+            <label className="form-label">n8n Registration Webhook URL</label>
             <input 
               type="text" 
               className="form-control" 
@@ -709,10 +689,10 @@ function App() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           
           {/* Interactive Request Flow Visualizer */}
-          <div className="glass-panel pipeline-card card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
-            <h3>🧬 Interactive API Request Pipeline Visualizer</h3>
+          <div className="glass-panel pipeline-card">
+            <h3>🧬 API Gateway Traffic Routing Pipeline</h3>
             <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.82rem' }}>
-              Real-time architectural route tracking. Fires whenever requests cross the security gateway boundary.
+              Dynamic path monitoring. Highlights active middleware segments during request resolution.
             </p>
 
             <svg className="pipeline-svg" viewBox="0 0 800 120" preserveAspectRatio="xMidYMid meet">
@@ -732,7 +712,7 @@ function App() {
 
               {/* Dynamic pulse overlays */}
               {pipelineState === 'sending' && (
-                <path d="M 100 60 L 660 60" fill="none" stroke="var(--accent-cyan)" strokeWidth="4" className="pipe-flow-pulse" />
+                <path d="M 100 60 L 660 60" fill="none" stroke="var(--accent-blue)" strokeWidth="4" className="pipe-flow-pulse" />
               )}
               {pipelineState === 'success_200' && (
                 <path d="M 100 60 L 660 60" fill="none" stroke="var(--accent-green)" strokeWidth="4" className="pipe-flow-pulse" />
@@ -753,7 +733,7 @@ function App() {
               {/* Node 3: Redis token-bucket rate limiter */}
               <circle cx="480" cy="60" r="24" className={`pipe-node-bg ${pipelineState === 'blocked_429' ? 'error' : ''} ${pipelineState === 'unauthorized_401' ? 'warning' : ''} ${pipelineState === 'success_200' ? 'success' : ''}`} />
               <text x="480" y="64" textAnchor="middle" fill="#fff" fontSize="14">⚡</text>
-              <text x="480" y="100" className="pipe-text-label" textAnchor="middle">Limiter Engine</text>
+              <text x="480" y="100" className="pipe-text-label" textAnchor="middle">Rate Limiter</text>
               <text x="480" y="112" className="pipe-text-sub" textAnchor="middle">Redis Lua Script</text>
 
               {/* Node 4: Downstream target */}
@@ -766,8 +746,8 @@ function App() {
 
           {/* Preset Automation Scenarios */}
           <div>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-cyan)' }}>
-              🤖 Preset Automation Scenario Scenarios (Interactive Recruiter Sandbox)
+            <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>
+              🤖 Interactive Scenario Simulator (Demonstrate Pipeline Features)
             </h4>
             <div className="scenario-selector">
               <button 
@@ -776,7 +756,7 @@ function App() {
               >
                 <div className="scenario-button-title">🟢 Steady Traffic Flow</div>
                 <div className="scenario-button-desc">
-                  Triggers 10 requests spacing out 1.5s. Simulates steady normal client requests, demonstrating token bucket refilling.
+                  Sends 10 standard requests spaced 1.5s. Demonstrates Redis token bucket replenishing and metrics stabilizing.
                 </div>
               </button>
               
@@ -786,7 +766,7 @@ function App() {
               >
                 <div className="scenario-button-title">🔴 DDoS Abuse & Auto-Block</div>
                 <div className="scenario-button-desc">
-                  Rapid traffic triggers rate limiters. Simulated n8n cron workflow catches the abusive IP and blocks it at the firewall node.
+                  Burst limits to hit 429 rate blocks. n8n workflow logs the abuse and blocks the IP automatically at the IP Guard firewall.
                 </div>
               </button>
 
@@ -796,7 +776,7 @@ function App() {
               >
                 <div className="scenario-button-title">🟡 Authentication Scan Sweep</div>
                 <div className="scenario-button-desc">
-                  Simulates dictionary brute force attacks with random invalid API keys, illustrating metrics counting database blocks.
+                  Sweeps endpoints with invalid/missing keys to demonstrate credential verification block logic.
                 </div>
               </button>
             </div>
@@ -807,10 +787,10 @@ function App() {
             {/* Forms Panel */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {/* Developer Key Registration */}
-              <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
-                <h3>🔑 Register Developer API Access</h3>
+              <div className="glass-panel">
+                <h3>🔑 Developer Access Credentials Onboarding</h3>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '20px', fontSize: '0.85rem' }}>
-                  Registers a key in Redis. This form simulates the developer registration workflow managed by n8n.
+                  Register metadata inside the Redis cache store. Simulates the automated dev workflow.
                 </p>
                 
                 <form onSubmit={handleOnboarding}>
@@ -841,7 +821,7 @@ function App() {
                   
                   <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                     <div style={{ flex: 1, minWidth: '180px' }}>
-                      <label className="form-label">Request Quota Cap</label>
+                      <label className="form-label">Request Quota Limit</label>
                       <select 
                         className="form-control" 
                         value={devLimit} 
@@ -859,12 +839,12 @@ function App() {
                 </form>
 
                 {generatedKey && (
-                  <div style={{ marginTop: '20px', padding: '12px', backgroundColor: 'var(--bg-secondary)', borderRadius: '6px', border: '1px solid var(--accent-cyan)' }}>
-                    <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>
-                      ✓ Generated Token Registered successfully:
+                  <div style={{ marginTop: '20px', padding: '12px', backgroundColor: 'var(--bg-secondary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--accent-blue)', fontWeight: 600 }}>
+                      ✓ Generated Token Registered:
                     </span>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '6px' }}>
-                      <code style={{ fontSize: '0.9rem', color: '#fff', wordBreak: 'break-all', flex: 1 }}>{generatedKey}</code>
+                      <code style={{ fontSize: '0.9rem', color: '#fff', wordBreak: 'break-all', flex: 1, fontFamily: 'var(--font-mono)' }}>{generatedKey}</code>
                       <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => {
                         navigator.clipboard.writeText(generatedKey);
                         addConsoleLog('SYS', 'API Key copied to system clipboard.', 200);
@@ -877,8 +857,8 @@ function App() {
               </div>
 
               {/* Endpoint Tester */}
-              <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
-                <h3>📡 API Gateway Endpoint Sandbox Tester</h3>
+              <div className="glass-panel">
+                <h3>📡 API Gateway Route Sandbox Tester</h3>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '20px', fontSize: '0.85rem' }}>
                   Execute calls against rate limited gateway routes to test key rules.
                 </p>
@@ -891,6 +871,7 @@ function App() {
                     placeholder="Enter api key..." 
                     value={testApiKey}
                     onChange={(e) => setTestApiKey(e.target.value)}
+                    style={{ fontFamily: 'var(--font-mono)' }}
                   />
                 </div>
 
@@ -922,7 +903,7 @@ function App() {
                       <h4 style={{ margin: 0, fontSize: '0.85rem' }}>Header Telemetry</h4>
                       <div style={{ display: 'flex', gap: '8px', fontSize: '0.8rem' }}>
                         <span>Status: <strong className={testResponse.status === 200 ? 'console-status s200' : 'console-status s429'}>{testResponse.status}</strong></span>
-                        <span>Latency: <strong style={{ color: 'var(--accent-cyan)' }}>{testResponse.duration}</strong></span>
+                        <span>Latency: <strong style={{ color: 'var(--accent-blue)' }}>{testResponse.duration}</strong></span>
                       </div>
                     </div>
                     
@@ -933,7 +914,7 @@ function App() {
                       </div>
                     )}
 
-                    <pre style={{ margin: 0, padding: '12px', backgroundColor: '#050608', border: '1px solid var(--border-color)', borderRadius: '6px', overflowX: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: '#10b981', textAlign: 'left', maxHeight: '150px' }}>
+                    <pre style={{ margin: 0, padding: '12px', backgroundColor: '#05070d', border: '1px solid var(--border-color)', borderRadius: '6px', overflowX: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: '#10b981', textAlign: 'left', maxHeight: '150px' }}>
                       {JSON.stringify(testResponse.body, null, 2)}
                     </pre>
                   </div>
@@ -944,7 +925,7 @@ function App() {
             {/* Terminal logs & Matrix Panel */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {/* Terminal logs */}
-              <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D} style={{ padding: '16px' }}>
+              <div className="glass-panel" style={{ padding: '16px' }}>
                 <div className="console-wrapper">
                   <div className="console-header" style={{ padding: '8px 16px' }}>
                     <div className="console-actions">
@@ -954,7 +935,7 @@ function App() {
                     </div>
                     <span className="console-title" style={{ fontSize: '0.8rem' }}>apishield-proxy.log</span>
                   </div>
-                  <div className="console-body" style={{ height: '200px', padding: '12px' }}>
+                  <div className="console-body" style={{ height: '220px', padding: '12px' }}>
                     {consoleLogs.map((log, i) => (
                       <div key={i} className="console-line" style={{ fontSize: '0.8rem', marginBottom: '6px' }}>
                         <span className="console-time">[{log.time}]</span>
@@ -976,14 +957,14 @@ function App() {
               </div>
 
               {/* Node Topology */}
-              <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D} style={{ padding: '16px' }}>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--accent-cyan)' }}>🧬 Token Bucket Topology matrix</h4>
+              <div className="glass-panel" style={{ padding: '16px' }}>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>⚡ Token Bucket Vector Matrix</h4>
                 <p style={{ color: 'var(--text-dim)', margin: '0 0 12px 0', fontSize: '0.78rem' }}>
                   Visual hash vectors: Green (200 OK), Amber (401 Bad API Key), Red (429 Rate Block).
                 </p>
                 <div className="traffic-matrix" style={{ gap: '6px' }}>
                   {matrixNodes.map((node, i) => (
-                    <div key={i} className={`matrix-node ${node || ''}`} style={{ borderRadius: '1px' }} />
+                    <div key={i} className={`matrix-node ${node || ''}`} />
                   ))}
                 </div>
               </div>
@@ -998,19 +979,19 @@ function App() {
           
           {/* Operational Metrics Cards */}
           <div className="metrics-grid" style={{ marginBottom: 0 }}>
-            <div className="glass-panel metric-card card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
+            <div className="glass-panel metric-card traffic">
               <span className="metric-label">Gateway API Traffic</span>
               <div className="metric-value">{activeMetrics.totalRequests}</div>
               <span className="metric-footer">Cumulative transaction count</span>
             </div>
             
-            <div className="glass-panel metric-card rate-limited card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
+            <div className="glass-panel metric-card rate-limited">
               <span className="metric-label" style={{ color: 'var(--danger)' }}>Rate Blocks (429)</span>
               <div className="metric-value" style={{ color: 'var(--danger)' }}>{activeMetrics.rateLimited}</div>
-              <span className="metric-footer">Intercepted by token bucket policy</span>
+              <span className="metric-footer">Intercepted by rate policy</span>
             </div>
 
-            <div className="glass-panel metric-card unauthorized card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
+            <div className="glass-panel metric-card unauthorized">
               <span className="metric-label" style={{ color: 'var(--warning)' }}>Key Failures (401/403)</span>
               <div className="metric-value" style={{ color: 'var(--warning)' }}>{activeMetrics.unauthorized}</div>
               <span className="metric-footer">Blocked auth credentials</span>
@@ -1020,8 +1001,8 @@ function App() {
           {/* SVG Sparklines & Bar Telemetry */}
           <div className="telemetry-charts-grid">
             {/* Sparkline for traffic rate */}
-            <div className="glass-panel telemetry-chart-card card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
-              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-cyan)' }}>📈 Request Rate Timeline</h4>
+            <div className="glass-panel telemetry-chart-card">
+              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>📈 Request Rate Timeline</h4>
               <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-dim)' }}>Requests per second (rolling 15s window)</p>
               
               <svg className="telemetry-svg" viewBox="0 0 300 80">
@@ -1049,14 +1030,14 @@ function App() {
                 })()}
 
                 {/* Legend details */}
-                <text x="5" y="15" className="chart-axis-text" fill="var(--text-dim)">{Math.max(3, ...rpsHistory)} rps</text>
-                <text x="5" y="75" className="chart-axis-text" fill="var(--text-dim)">0 rps</text>
+                <text x="5" y="15" className="chart-axis-text" fill="var(--text-muted)">{Math.max(3, ...rpsHistory)} rps</text>
+                <text x="5" y="75" className="chart-axis-text" fill="var(--text-muted)">0 rps</text>
               </svg>
             </div>
 
             {/* Bar Chart for Latencies */}
-            <div className="glass-panel telemetry-chart-card card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
-              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-cyan)' }}>⏳ Transaction Latencies</h4>
+            <div className="glass-panel telemetry-chart-card">
+              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>⏳ Response Latency Stream</h4>
               <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-dim)' }}>Execution time per transaction (last 15 calls)</p>
               
               <svg className="telemetry-svg" viewBox="0 0 300 80">
@@ -1086,17 +1067,17 @@ function App() {
                   );
                 })}
 
-                <text x="5" y="15" className="chart-axis-text" fill="var(--text-dim)">{Math.max(150, ...latencyHistory.map(h => h.latency))}ms</text>
-                <text x="5" y="75" className="chart-axis-text" fill="var(--text-dim)">0ms</text>
+                <text x="5" y="15" className="chart-axis-text" fill="var(--text-muted)">{Math.max(150, ...latencyHistory.map(h => h.latency))}ms</text>
+                <text x="5" y="75" className="chart-axis-text" fill="var(--text-muted)">0ms</text>
               </svg>
             </div>
           </div>
 
           {/* Redis Database Inspector Panel */}
-          <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
-            <h3 style={{ borderLeftColor: 'var(--accent-cyan)' }}>📦 Live Redis Keyspace Inspector</h3>
+          <div className="glass-panel">
+            <h3>📦 Live Redis Keyspace Inspector</h3>
             <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.85rem' }}>
-              Inspect structural schemas stored directly inside memory. Select keys in the sidebar to review active state variables.
+              Inspect cache schemas stored inside memory. Select keys in the sidebar to review active state variables.
             </p>
 
             <div className="redis-inspector-card">
@@ -1131,10 +1112,10 @@ function App() {
               <div className="redis-inspect-content">
                 {selectedRedisKey ? (
                   <>
-                    <div style={{ position: 'absolute', top: '8px', right: '12px', fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-                      TTL: 86400s (1 Day)
+                    <div style={{ position: 'absolute', top: '8px', right: '12px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      TTL: 86400s
                     </div>
-                    <pre style={{ margin: 0, color: 'var(--accent-green)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                    <pre style={{ margin: 0, color: 'var(--accent-green)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'var(--font-mono)' }}>
                       {(() => {
                         let dataToRender;
                         if (selectedRedisKey === `rate:limit:${generatedKey}`) {
@@ -1147,7 +1128,7 @@ function App() {
                     </pre>
                   </>
                 ) : (
-                  <div className="redis-inspect-placeholder">Select a redis cache namespace keys to inspect value...</div>
+                  <div className="redis-inspect-placeholder">Select a keyspace namespace to inspect database details...</div>
                 )}
               </div>
             </div>
@@ -1156,7 +1137,7 @@ function App() {
           {/* Table Transactions Split */}
           <div className="dashboard-layout">
             {/* Live Traffic Stream */}
-            <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
+            <div className="glass-panel">
               <h3>📈 Operational Transaction Logs</h3>
               <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.85rem' }}>
                 Log audit tracking. Pulls metrics from backend proxy history.
@@ -1190,13 +1171,13 @@ function App() {
                             <span className="console-method GET" style={{ marginRight: '6px', padding: '1px 4px', fontSize: '0.72rem' }}>
                               GET
                             </span>
-                            <code style={{ background: 'none', padding: 0 }}>{log.path}</code>
+                            <code style={{ background: 'none', padding: 0, fontFamily: 'var(--font-mono)' }}>{log.path}</code>
                           </td>
                           <td style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
                             {log.ip}
                           </td>
                           <td>
-                            <span style={{ fontWeight: 600, color: 'var(--accent-cyan)' }}>{log.keyName}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--accent-blue)' }}>{log.keyName}</span>
                           </td>
                           <td>
                             <strong className={log.status === 200 ? 'console-status s200' : 'console-status s429'}>
@@ -1214,10 +1195,10 @@ function App() {
             {/* Blacklist Administration */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {/* Manually Block IP */}
-              <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
-                <h3>🚫 Access IP Block Control</h3>
+              <div className="glass-panel">
+                <h3>🚫 Firewall Access IP Block</h3>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '12px', fontSize: '0.82rem' }}>
-                  Write IPs to block state. Blocked IPs are dropped with a 403 Forbidden intercept.
+                  Write IPs to blacklist. Blocked IPs are dropped with a 403 Forbidden intercept.
                 </p>
                 
                 <form onSubmit={blockIpAddress} style={{ display: 'flex', gap: '8px' }}>
@@ -1237,7 +1218,7 @@ function App() {
               </div>
 
               {/* Active Blacklist View */}
-              <div className="glass-panel card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
+              <div className="glass-panel">
                 <h4>Active Firewall Blacklist ({currentBlacklist.length})</h4>
                 <div className="data-table-wrapper" style={{ maxHeight: '180px', overflowY: 'auto' }}>
                   <table className="data-table" style={{ fontSize: '0.8rem' }}>
@@ -1281,7 +1262,7 @@ function App() {
 
       {/* ----------------- TAB: MCP SERVER CONNECT ----------------- */}
       {activeTab === 'mcp' && (
-        <div className="glass-panel docs-block card-3d" onMouseMove={handleMouseMove3D} onMouseLeave={handleMouseLeave3D}>
+        <div className="glass-panel docs-block">
           <h3>🔌 Model Context Protocol (MCP) Integration Engine</h3>
           <p style={{ color: 'var(--text-primary)', marginBottom: '24px', lineHeight: 1.6 }}>
             APIShield exposes an official **Model Context Protocol (MCP)** endpoint that allows AI assistants (like Claude Desktop or Cursor IDE) to orchestrate administration tasks automatically using natural language instructions.
@@ -1294,7 +1275,7 @@ function App() {
           <pre style={{ fontSize: '0.82rem', textAlign: 'left' }}>{`%APPDATA%\\Claude\\claude_desktop_config.json (Windows)
 ~/Library/Application Support/Claude/claude_desktop_config.json (macOS)`}</pre>
           
-          <pre style={{ color: 'var(--accent-cyan)', textAlign: 'left', fontSize: '0.82rem' }}>{`{
+          <pre style={{ color: 'var(--accent-blue)', textAlign: 'left', fontSize: '0.82rem' }}>{`{
   "mcpServers": {
     "apishield-admin": {
       "command": "node",
@@ -1322,7 +1303,7 @@ function App() {
           </div>
 
           <h2>Orchestration Commands to try with your agent:</h2>
-          <pre style={{ color: 'var(--accent-purple)', textAlign: 'left', fontSize: '0.85rem', lineHeight: 1.5 }}>
+          <pre style={{ color: 'var(--accent-amber)', textAlign: 'left', fontSize: '0.85rem', lineHeight: 1.5 }}>
 {`• "Show the active IP blacklist records from apishield-admin."
 • "Tell apishield-admin to blacklist the malicious IP address 198.51.100.80."
 • "Check key rate limit statistics for the API Gateway."
