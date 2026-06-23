@@ -170,6 +170,7 @@ async function apiSecurityMiddleware(req, res, next) {
     console.error('Auth & Rate Limiting Middleware Error', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
+}
 app.get('/', (req, res) => {
   res.json({ status: 'OK', message: 'APIShield API Gateway is active and secure.' });
 });
@@ -282,11 +283,22 @@ app.post('/admin/blacklist', async (req, res) => {
 });
 
 // Connect to Redis and startup server
-(async () => {
-  await redisClient.connect();
-  await seedDefaultKey();
-  
-  app.listen(PORT, () => {
-    console.log(`API Shield Gateway running on port ${PORT}`);
-  });
-})();
+if (require.main === module) {
+  (async () => {
+    await redisClient.connect();
+    await seedDefaultKey();
+    
+    app.listen(PORT, () => {
+      console.log(`API Shield Gateway running on port ${PORT}`);
+    });
+  })();
+}
+
+module.exports = {
+  app,
+  redisClient,
+  seedDefaultKey,
+  ipBlacklistMiddleware,
+  apiSecurityMiddleware
+};
+

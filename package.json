@@ -5,6 +5,7 @@
   "scripts": {
     "gateway": "npm --prefix gateway start",
     "mcp": "npm --prefix mcp-server start",
-    "frontend": "npm --prefix frontend run dev"
+    "frontend": "npm --prefix frontend run dev",
+    "test": "npm --prefix gateway test && npm --prefix mcp-server test"
   }
 }

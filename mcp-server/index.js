@@ -8,6 +8,8 @@ import {
 import { createClient } from "redis";
 import express from "express";
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import path from "path";
 
 dotenv.config();
 
@@ -263,7 +265,13 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error("Critical error running MCP Server:", err);
-  process.exit(1);
-});
+const isMain = process.argv[1] && path.resolve(fileURLToPath(import.meta.url)) === path.resolve(process.argv[1]);
+if (isMain) {
+  run().catch((err) => {
+    console.error("Critical error running MCP Server:", err);
+    process.exit(1);
+  });
+}
+
+export { server, redisClient, run };
+
