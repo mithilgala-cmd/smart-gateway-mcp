@@ -101,6 +101,20 @@ const mockRedisClient = {
     if (!redisStore.has(key)) return null;
     return redisStore.get(key).value;
   },
+  set: async (key, value) => {
+    redisStore.set(key, { type: 'string', value: value.toString() });
+    return 'OK';
+  },
+  keys: async (pattern) => {
+    const matched = [];
+    const prefix = pattern.replace('*', '');
+    for (const key of redisStore.keys()) {
+      if (key.startsWith(prefix)) {
+        matched.push(key);
+      }
+    }
+    return matched;
+  },
   eval: async (script, options) => {
     const key = options.keys[0];
     const capacity = parseFloat(options.arguments[0]);
@@ -323,5 +337,82 @@ test.describe('APIShield Gateway Tests', () => {
     assert.strictEqual(response.body.metrics.rateLimited, 1);
     assert.strictEqual(response.body.recentLogs.length, 1);
     assert.strictEqual(response.body.recentLogs[0].keyName, 'Alice');
+  });
+
+  test('GET /admin/keys/all should return all seeded keys', async () => {
+    await mockRedisClient.hSet('apikey:test-key-1', {
+      name: 'User One',
+      limit: '60',
+      active: 'true',
+      createdAt: new Date().toISOString()
+    });
+
+    const response = await request(app)
+      .get('/admin/keys/all')
+      .expect(200);
+
+    assert.strictEqual(response.body.keys.length, 1);
+    assert.strictEqual(response.body.keys[0].name, 'User One');
+    assert.strictEqual(response.body.keys[0].apiKey, 'test-key-1');
+  });
+
+  test('POST /admin/keys/status should toggle key active state', async () => {
+    await mockRedisClient.hSet('apikey:test-key-2', {
+      name: 'User Two',
+      limit: '30',
+      active: 'true',
+      createdAt: new Date().toISOString()
+    });
+
+    const response = await request(app)
+      .post('/admin/keys/status')
+      .send({ apiKey: 'test-key-2', active: false })
+      .expect(200);
+
+    assert.match(response.body.message, /active status set to false/);
+    const keyData = await mockRedisClient.hGetAll('apikey:test-key-2');
+    assert.strictEqual(keyData.active, 'false');
+  });
+
+  test('GET /admin/agent/logs should return config, state and logs', async () => {
+    await mockRedisClient.lPush('telemetry:agent_logs', JSON.stringify({
+      timestamp: new Date().toISOString(),
+      ip: '10.0.0.99',
+      action: 'IP_BLOCKED',
+      reason: 'Rate limit breach'
+    }));
+
+    const response = await request(app)
+      .get('/admin/agent/logs')
+      .expect(200);
+
+    assert.strictEqual(response.body.logs.length, 1);
+    assert.strictEqual(response.body.logs[0].ip, '10.0.0.99');
+    assert.strictEqual(response.body.config.active, true);
+    assert.strictEqual(response.body.agentState.activeNode, 'idle');
+  });
+
+  test('POST /admin/agent/config should update configurations', async () => {
+    await request(app)
+      .post('/admin/agent/config')
+      .send({ active: false, max429Violations: 8 })
+      .expect(200);
+
+    const active = await mockRedisClient.get('config:security_agent_active');
+    const limit = await mockRedisClient.get('config:max_429_violations');
+    assert.strictEqual(active, 'false');
+    assert.strictEqual(limit, '8');
+  });
+
+  test('POST /admin/chat should process messages and fallback to NLP', async () => {
+    const response = await request(app)
+      .post('/admin/chat')
+      .send({ message: 'Block IP 192.168.10.10' })
+      .expect(200);
+
+    assert.strictEqual(response.body.mode, 'fallback_nlp');
+    assert.match(response.body.reply, /added \*\*192.168.10.10\*\* to the gateway IP blacklist/);
+    const isBlocked = await mockRedisClient.sIsMember('blacklist:ips', '192.168.10.10');
+    assert.strictEqual(isBlocked, true);
   });
 });

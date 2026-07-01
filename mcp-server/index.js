@@ -100,6 +100,40 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["apiKey", "limit"],
         },
       },
+      {
+        name: "get_api_keys",
+        description: "Retrieve all seeded API keys, their request quotas, active statuses, and creation dates.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "update_key_status",
+        description: "Enable or disable a specific API key, activating or suspending its gateway access.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            apiKey: {
+              type: "string",
+              description: "The API Key to modify.",
+            },
+            active: {
+              type: "boolean",
+              description: "The status to set: true to activate, false to suspend.",
+            },
+          },
+          required: ["apiKey", "active"],
+        },
+      },
+      {
+        name: "get_agent_logs",
+        description: "Fetch the execution logs and compiled incident reports from the Autonomous Security Agent and Multi-Agent Orchestrator.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
     ],
   };
 });
@@ -206,6 +240,83 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: `Successfully updated quota for API Key '${apiKey}' to ${limit} requests per minute.`,
+            },
+          ],
+        };
+      }
+
+      case "get_api_keys": {
+        const keys = await redisClient.keys("apikey:*");
+        const keysList = [];
+        for (const key of keys) {
+          const keyData = await redisClient.hGetAll(key);
+          keysList.push({
+            apiKey: key.replace("apikey:", ""),
+            name: keyData.name,
+            limit: parseInt(keyData.limit, 10),
+            active: keyData.active === "true",
+            createdAt: keyData.createdAt
+          });
+        }
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ keys: keysList }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "update_key_status": {
+        const { apiKey, active } = args;
+        const keyExists = await redisClient.exists(`apikey:${apiKey}`);
+        if (!keyExists) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: `API Key '${apiKey}' does not exist. Status could not be updated.`,
+              },
+            ],
+          };
+        }
+        await redisClient.hSet(`apikey:${apiKey}`, "active", active ? "true" : "false");
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully updated active status of API Key '${apiKey}' to ${active}.`,
+            },
+          ],
+        };
+      }
+
+      case "get_agent_logs": {
+        const logs = await redisClient.lRange("telemetry:agent_logs", 0, 49);
+        const parsedLogs = logs.map(log => JSON.parse(log));
+        
+        const reports = await redisClient.lRange("telemetry:agent_reports", 0, 49);
+        const parsedReports = reports.map(rep => JSON.parse(rep));
+        
+        const isAgentActive = await redisClient.get("config:security_agent_active") !== "false";
+        const max429Violations = parseInt(await redisClient.get("config:max_429_violations") || "5", 10);
+        const max401Violations = parseInt(await redisClient.get("config:max_401_violations") || "5", 10);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                config: {
+                  agentActive: isAgentActive,
+                  max429Violations,
+                  max401Violations
+                },
+                agentLogs: parsedLogs,
+                incidentReports: parsedReports
+              }, null, 2),
             },
           ],
         };

@@ -35,6 +35,19 @@ redisClient.hSet = async (key, field, value) => {
   redisStore.get(key)[field] = value;
   return 1;
 };
+redisClient.hGetAll = async (key) => {
+  return redisStore.get(key) || {};
+};
+redisClient.keys = async (pattern) => {
+  const prefix = pattern.replace('*', '');
+  const matched = [];
+  for (const key of redisStore.keys()) {
+    if (key.startsWith(prefix)) {
+      matched.push(key);
+    }
+  }
+  return matched;
+};
 redisClient.lRange = async (key, start, stop) => {
   const list = redisStore.get(key) || [];
   const end = stop < 0 ? list.length + stop + 1 : stop + 1;
@@ -56,7 +69,7 @@ test.describe('APIShield MCP Server Tests', () => {
     
     const result = await listToolsHandler({ method: 'tools/list' });
     assert.ok(result.tools);
-    assert.strictEqual(result.tools.length, 5);
+    assert.strictEqual(result.tools.length, 8);
 
     const names = result.tools.map(t => t.name);
     assert.ok(names.includes('get_gateway_metrics'));
@@ -64,6 +77,9 @@ test.describe('APIShield MCP Server Tests', () => {
     assert.ok(names.includes('block_ip'));
     assert.ok(names.includes('unblock_ip'));
     assert.ok(names.includes('update_key_quota'));
+    assert.ok(names.includes('get_api_keys'));
+    assert.ok(names.includes('update_key_status'));
+    assert.ok(names.includes('get_agent_logs'));
   });
 
   test('tools/call: get_gateway_metrics should return metrics and logs from Redis', async () => {
@@ -174,5 +190,79 @@ test.describe('APIShield MCP Server Tests', () => {
     assert.ok(!result.isError);
     assert.match(result.content[0].text, /Successfully updated quota/);
     assert.strictEqual(redisStore.get('apikey:existing-key').limit, '250');
+  });
+
+  test('tools/call: get_api_keys should return all api keys', async () => {
+    const callToolHandler = server._requestHandlers.get('tools/call');
+    
+    redisStore.set('apikey:test-key-3', {
+      name: 'User Three',
+      limit: '90',
+      active: 'true',
+      createdAt: '2026-06-25T12:00:00Z'
+    });
+
+    const result = await callToolHandler({
+      method: 'tools/call',
+      params: {
+        name: 'get_api_keys',
+        arguments: {}
+      }
+    });
+
+    assert.ok(!result.isError);
+    const data = JSON.parse(result.content[0].text);
+    assert.strictEqual(data.keys.length, 1);
+    assert.strictEqual(data.keys[0].name, 'User Three');
+    assert.strictEqual(data.keys[0].apiKey, 'test-key-3');
+  });
+
+  test('tools/call: update_key_status should change key active status', async () => {
+    const callToolHandler = server._requestHandlers.get('tools/call');
+
+    redisStore.set('apikey:test-key-4', {
+      name: 'User Four',
+      limit: '120',
+      active: 'true',
+      createdAt: '2026-06-26T12:00:00Z'
+    });
+
+    const result = await callToolHandler({
+      method: 'tools/call',
+      params: {
+        name: 'update_key_status',
+        arguments: { apiKey: 'test-key-4', active: false }
+      }
+    });
+
+    assert.ok(!result.isError);
+    assert.match(result.content[0].text, /Successfully updated active status/);
+    assert.strictEqual(redisStore.get('apikey:test-key-4').active, 'false');
+  });
+
+  test('tools/call: get_agent_logs should return logs and configuration', async () => {
+    const callToolHandler = server._requestHandlers.get('tools/call');
+
+    redisStore.set('telemetry:agent_logs', [
+      JSON.stringify({ timestamp: new Date().toISOString(), ip: '192.168.1.1', action: 'IP_BLOCKED', reason: 'Abuse' })
+    ]);
+    redisStore.set('telemetry:agent_reports', [
+      JSON.stringify({ timestamp: new Date().toISOString(), ip: '192.168.1.1', type: 'DDoS', reportMarkdown: '# Alert' })
+    ]);
+    redisStore.set('config:security_agent_active', 'true');
+
+    const result = await callToolHandler({
+      method: 'tools/call',
+      params: {
+        name: 'get_agent_logs',
+        arguments: {}
+      }
+    });
+
+    assert.ok(!result.isError);
+    const data = JSON.parse(result.content[0].text);
+    assert.strictEqual(data.config.agentActive, true);
+    assert.strictEqual(data.agentLogs.length, 1);
+    assert.strictEqual(data.incidentReports.length, 1);
   });
 });
