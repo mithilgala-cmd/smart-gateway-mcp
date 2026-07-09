@@ -6,6 +6,12 @@
     "gateway": "npm --prefix gateway start",
     "mcp": "npm --prefix mcp-server start",
     "frontend": "npm --prefix frontend run dev",
+    "agent": "node gateway/security-agent.js",
+    "multi-agent": "node gateway/multi-agent-orchestrator.js",
+    "dev:all": "concurrently --kill-others \"npm run gateway\" \"npm run mcp\" \"npm run agent\" \"npm run multi-agent\" \"npm run frontend\"",
     "test": "npm --prefix gateway test && npm --prefix mcp-server test"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }

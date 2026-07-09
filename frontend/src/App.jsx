@@ -4,8 +4,9 @@ function App() {
   const [activeTab, setActiveTab] = useState('developer');
   
   // Connection Configuration
-  const [gatewayUrl, setGatewayUrl] = useState('https://apishield-gateway.onrender.com');
-  const [n8nUrl, setN8nUrl] = useState('https://apishield-n8n.onrender.com/webhook/developer-onboarding');
+  const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const [gatewayUrl, setGatewayUrl] = useState(isLocal ? 'http://localhost:8000' : 'https://apishield-gateway.onrender.com');
+  const [n8nUrl, setN8nUrl] = useState(isLocal ? 'http://localhost:5678/webhook/developer-onboarding' : 'https://apishield-n8n.onrender.com/webhook/developer-onboarding');
 
   // Developer Tab State
   const [devName, setDevName] = useState('');
@@ -39,6 +40,18 @@ function App() {
   const [blacklist, setBlacklist] = useState([]);
   const [newBlockIp, setNewBlockIp] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
+
+  // AI Center Tab State
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([
+    { sender: 'ai', text: "Hello! I am your APIShield AI Copilot. I can query metrics, block/unblock IPs, and adjust key quotas. Ask me anything!", timestamp: new Date().toLocaleTimeString() }
+  ]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [agentConfig, setAgentConfig] = useState({ active: true, max429Violations: 5, max401Violations: 5 });
+  const [agentLogs, setAgentLogs] = useState([]);
+  const [incidentReports, setIncidentReports] = useState([]);
+  const [multiAgentState, setMultiAgentState] = useState({ activeNode: 'idle', currentThreat: null });
+  const [apiKeysList, setApiKeysList] = useState([]);
 
   // Health check status
   const [gatewayConnected, setGatewayConnected] = useState(false);
@@ -127,11 +140,30 @@ function App() {
           setRecentLogs(data.recentLogs || []);
           setBlacklist(data.blacklist || []);
           setGatewayConnected(true);
+          
+          // Fetch API Keys list
+          const keysRes = await fetch(`${gatewayUrl}/admin/keys/all`);
+          if (keysRes.ok) {
+            const keysData = await keysRes.json();
+            setApiKeysList(keysData.keys || []);
+          }
+          
+          // Fetch Agent details
+          const agentRes = await fetch(`${gatewayUrl}/admin/agent/logs`);
+          if (agentRes.ok) {
+            const agentData = await agentRes.json();
+            setAgentLogs(agentData.logs || []);
+            setIncidentReports(agentData.reports || []);
+            setAgentConfig(agentData.config || { active: true, max429Violations: 5, max401Violations: 5 });
+            setMultiAgentState(agentData.agentState || { activeNode: 'idle', currentThreat: null });
+          }
         } else {
           setGatewayConnected(false);
+          fallbackSimulationPoll();
         }
       } catch (err) {
         setGatewayConnected(false);
+        fallbackSimulationPoll();
       }
 
       // 2. Ping n8n Webhook Endpoint
@@ -147,11 +179,23 @@ function App() {
       }
     };
 
+    const fallbackSimulationPoll = () => {
+      // Offline fallback: construct keys from simulatedKeys state
+      const localKeys = Object.entries(simulatedKeys).map(([apiKey, keyData]) => ({
+        apiKey,
+        name: keyData.name,
+        limit: keyData.limit,
+        active: keyData.active !== 'false',
+        createdAt: new Date().toISOString()
+      }));
+      setApiKeysList(localKeys);
+    };
+
     checkHealthAndMetrics();
     interval = setInterval(checkHealthAndMetrics, 3000);
 
     return () => clearInterval(interval);
-  }, [gatewayUrl, n8nUrl]);
+  }, [gatewayUrl, n8nUrl, simulatedKeys]);
 
   // Add line to terminal console
   const addConsoleLog = (method, message, status) => {
@@ -516,6 +560,138 @@ function App() {
     }
   };
 
+  // AI Center Handlers
+  const handleChatSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMsg = chatInput;
+    setChatMessages(prev => [...prev, { sender: 'user', text: userMsg, timestamp: new Date().toLocaleTimeString() }]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const res = await fetch(`${gatewayUrl}/admin/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChatMessages(prev => [...prev, { 
+          sender: 'ai', 
+          text: data.reply, 
+          mode: data.mode,
+          timestamp: new Date().toLocaleTimeString() 
+        }]);
+        if (data.commandExecuted) {
+          addConsoleLog('SYS', `[AI Action] ${data.commandExecuted}`, 200);
+        }
+      } else {
+        throw new Error('Chat failed');
+      }
+    } catch (err) {
+      setTimeout(() => {
+        let reply = "I am operating in Sandbox Mode (Offline). I can simulate basic command execution locally:";
+        let commandExecuted = null;
+        const normalizedMsg = userMsg.toLowerCase();
+        
+        if (normalizedMsg.includes('block') || normalizedMsg.includes('blacklist')) {
+          const ipMatch = userMsg.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
+          if (ipMatch) {
+            const ip = ipMatch[0];
+            setSimulatedBlacklist(prev => [...prev, ip]);
+            commandExecuted = `Blacklisted IP: ${ip}`;
+            reply = `### 🛡️ Firewall Block Executed\nI have added **${ip}** to the simulated blacklist.`;
+          }
+        } else if (normalizedMsg.includes('unblock')) {
+          const ipMatch = userMsg.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
+          if (ipMatch) {
+            const ip = ipMatch[0];
+            setSimulatedBlacklist(prev => prev.filter(item => item !== ip));
+            commandExecuted = `Restored access for IP: ${ip}`;
+            reply = `### ✅ Access Restored\nI have removed **${ip}** from the simulated blacklist.`;
+          }
+        } else if (normalizedMsg.includes('limit') || normalizedMsg.includes('quota')) {
+          const limitMatch = userMsg.match(/\b\d+\b/);
+          if (limitMatch) {
+            const limit = parseInt(limitMatch[0], 10);
+            setSimulatedKeys(prev => ({
+              ...prev,
+              'demo-key-123': { ...prev['demo-key-123'], limit }
+            }));
+            commandExecuted = `Updated quota limit for demo-key-123 to ${limit}`;
+            reply = `### ⚡ Rate Limit Quota Resized\nSuccessfully updated quota for **demo-key-123** to **${limit}** req/min.`;
+          }
+        } else {
+          reply = `Sandbox Mode: I found no matching rule for "${userMsg}". Try asking: *"Block IP 192.168.5.5"* or *"Show metrics"*.`;
+        }
+
+        setChatMessages(prev => [...prev, { 
+          sender: 'ai', 
+          text: reply, 
+          mode: 'sandbox_sim',
+          timestamp: new Date().toLocaleTimeString() 
+        }]);
+        if (commandExecuted) {
+          addConsoleLog('SYS', `[AI Action] ${commandExecuted}`, 200);
+        }
+      }, 500);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const toggleKeyStatus = async (apiKey, currentStatus) => {
+    if (!gatewayConnected) {
+      setSimulatedKeys(prev => {
+        const next = { ...prev };
+        if (next[apiKey]) {
+          next[apiKey] = { ...next[apiKey], active: currentStatus ? 'false' : 'true' };
+        }
+        return next;
+      });
+      addConsoleLog('SYS', `Simulated API Key ${apiKey} status toggled.`, 200);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${gatewayUrl}/admin/keys/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, active: !currentStatus })
+      });
+      if (res.ok) {
+        addConsoleLog('SYS', `Successfully updated key ${apiKey} active status to ${!currentStatus}`, 200);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const saveAgentConfig = async () => {
+    if (!gatewayConnected) {
+      addConsoleLog('SYS', 'Sandbox Mode: Saved agent config locally.', 200);
+      return;
+    }
+    try {
+      const res = await fetch(`${gatewayUrl}/admin/agent/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          active: agentConfig.active,
+          max429Violations: agentConfig.max429Violations,
+          max401Violations: agentConfig.max401Violations
+        })
+      });
+      if (res.ok) {
+        addConsoleLog('SYS', 'Security Agent configuration updated successfully.', 200);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // 4. Manually Block IP
   const blockIpAddress = async (e) => {
     e.preventDefault();
@@ -649,6 +825,9 @@ function App() {
         </button>
         <button className={`tab-btn ${activeTab === 'admin' ? 'active' : ''}`} onClick={() => setActiveTab('admin')}>
           Admin Telemetry
+        </button>
+        <button className={`tab-btn ${activeTab === 'ai-center' ? 'active' : ''}`} onClick={() => setActiveTab('ai-center')}>
+          🤖 AI Control Center
         </button>
         <button className={`tab-btn ${activeTab === 'mcp' ? 'active' : ''}`} onClick={() => setActiveTab('mcp')}>
           MCP Server Connect
@@ -1257,6 +1436,405 @@ function App() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ----------------- TAB: AI CONTROL CENTER ----------------- */}
+      {activeTab === 'ai-center' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          
+          {/* Main Workspace Layout */}
+          <div className="dashboard-layout">
+            
+            {/* Left Hand: AI Chat & Agent Config */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* Glassmorphic Chat Copilot */}
+              <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '450px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0 }}>💬 APIShield AI Copilot</h3>
+                  <span style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-dim)' }}>
+                    Mode: {gatewayConnected ? 'Live Connection' : 'Sandbox Simulation'}
+                  </span>
+                </div>
+                
+                {/* Messages scroll pane */}
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px', marginBottom: '16px' }}>
+                  {chatMessages.map((msg, i) => (
+                    <div 
+                      key={i} 
+                      style={{ 
+                        alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                        maxWidth: '85%',
+                        backgroundColor: msg.sender === 'user' ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255,255,255,0.02)',
+                        border: msg.sender === 'user' ? '1px solid rgba(56, 189, 248, 0.2)' : '1px solid var(--border-color)',
+                        borderRadius: msg.sender === 'user' ? '12px 12px 0 12px' : '12px 12px 12px 0',
+                        padding: '12px 16px',
+                        fontSize: '0.88rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '24px', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        <span>{msg.sender === 'user' ? 'Admin' : 'APIShield Copilot'} {msg.mode ? `(${msg.mode})` : ''}</span>
+                        <span>{msg.timestamp}</span>
+                      </div>
+                      <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.4, color: '#fff', textAlign: 'left' }}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px 12px 12px 0', padding: '12px 16px', fontSize: '0.88rem', color: 'var(--text-dim)' }}>
+                      <span className="blink-green status-dot"></span> Thinking...
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick actions chips */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                  <button 
+                    className="tag" 
+                    style={{ cursor: 'pointer', borderStyle: 'dotted' }}
+                    onClick={() => setChatInput('Show live metrics')}
+                  >
+                    📊 Show metrics
+                  </button>
+                  <button 
+                    className="tag" 
+                    style={{ cursor: 'pointer', borderStyle: 'dotted' }}
+                    onClick={() => setChatInput('List active API keys')}
+                  >
+                    🔑 List keys
+                  </button>
+                  <button 
+                    className="tag" 
+                    style={{ cursor: 'pointer', borderStyle: 'dotted' }}
+                    onClick={() => setChatInput('Block IP 192.168.1.150')}
+                  >
+                    🛡️ Block 192.168.1.150
+                  </button>
+                  <button 
+                    className="tag" 
+                    style={{ cursor: 'pointer', borderStyle: 'dotted' }}
+                    onClick={() => setChatInput('Set limit of demo-key-123 to 120')}
+                  >
+                    ⚡ Set limit to 120
+                  </button>
+                </div>
+                
+                {/* Chat Form input */}
+                <form onSubmit={handleChatSubmit} style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Ask AI Copilot to run admin actions..." 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    disabled={chatLoading}
+                  />
+                  <button type="submit" className="btn btn-primary" disabled={chatLoading || !chatInput.trim()}>
+                    Send
+                  </button>
+                </form>
+              </div>
+
+              {/* Security Agent Configuration */}
+              <div className="glass-panel">
+                <h3>🛡️ Autonomous Security Agent Configuration</h3>
+                <p style={{ color: 'var(--text-dim)', marginBottom: '20px', fontSize: '0.82rem' }}>
+                  Manage the background daemon heuristics that monitor logs and auto-block attackers.
+                </p>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="form-label" style={{ margin: 0 }}>Agent Operating Status</label>
+                    <button 
+                      type="button" 
+                      className={`btn ${agentConfig.active ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ padding: '6px 16px', fontSize: '0.85rem' }}
+                      onClick={() => setAgentConfig(prev => ({ ...prev, active: !prev.active }))}
+                    >
+                      {agentConfig.active ? '🟢 ACTIVE RUNNING' : '🔴 PAUSED'}
+                    </button>
+                  </div>
+                  
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <label className="form-label" style={{ margin: 0 }}>Rate-Limit Breach Threshold (429)</label>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--accent-blue)', fontWeight: 600 }}>{agentConfig.max429Violations} requests / 15s</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="2" 
+                      max="15" 
+                      value={agentConfig.max429Violations} 
+                      onChange={(e) => setAgentConfig(prev => ({ ...prev, max429Violations: parseInt(e.target.value) }))}
+                      style={{ width: '100%', accentColor: 'var(--accent-blue)' }}
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <label className="form-label" style={{ margin: 0 }}>Auth Failure Breach Threshold (401)</label>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--accent-blue)', fontWeight: 600 }}>{agentConfig.max401Violations} failures / 15s</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="2" 
+                      max="15" 
+                      value={agentConfig.max401Violations} 
+                      onChange={(e) => setAgentConfig(prev => ({ ...prev, max401Violations: parseInt(e.target.value) }))}
+                      style={{ width: '100%', accentColor: 'var(--accent-blue)' }}
+                    />
+                  </div>
+                </div>
+
+                <button className="btn btn-secondary" style={{ width: '100%' }} onClick={saveAgentConfig}>
+                  Save Agent Configuration
+                </button>
+              </div>
+
+            </div>
+
+            {/* Right Hand: Multi-Agent state visualizer & reports */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* Multi-Agent Workflow State Diagram */}
+              <div className="glass-panel" style={{ padding: '20px' }}>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>🤖 Multi-Agent Orchestration Flow</h4>
+                <p style={{ color: 'var(--text-dim)', margin: '0 0 16px 0', fontSize: '0.78rem' }}>
+                  Auditing, mitigating, and reporting incidents reactively when anomalies trigger.
+                </p>
+                
+                {/* Visual state graph representation */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '12px 0', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.12)', marginBottom: '16px' }}>
+                  
+                  {/* Node 1: Auditor */}
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    opacity: multiAgentState.activeNode === 'Auditor' ? 1 : 0.45,
+                    transform: multiAgentState.activeNode === 'Auditor' ? 'scale(1.05)' : 'none',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <div style={{ 
+                      width: '42px', 
+                      height: '42px', 
+                      borderRadius: '50%', 
+                      backgroundColor: multiAgentState.activeNode === 'Auditor' ? 'var(--accent-blue)' : 'var(--bg-tertiary)',
+                      border: '2px solid rgba(255,255,255,0.08)',
+                      boxShadow: multiAgentState.activeNode === 'Auditor' ? '0 0 12px var(--accent-blue)' : 'none',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontWeight: 600
+                    }}>
+                      🔍
+                    </div>
+                    <span style={{ fontSize: '0.72rem', marginTop: '6px', fontWeight: 600 }}>Auditor</span>
+                  </div>
+
+                  <span style={{ color: 'var(--text-muted)' }}>➔</span>
+
+                  {/* Node 2: Mitigator */}
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    opacity: multiAgentState.activeNode === 'Mitigator' ? 1 : 0.45,
+                    transform: multiAgentState.activeNode === 'Mitigator' ? 'scale(1.05)' : 'none',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <div style={{ 
+                      width: '42px', 
+                      height: '42px', 
+                      borderRadius: '50%', 
+                      backgroundColor: multiAgentState.activeNode === 'Mitigator' ? 'var(--accent-amber)' : 'var(--bg-tertiary)',
+                      border: '2px solid rgba(255,255,255,0.08)',
+                      boxShadow: multiAgentState.activeNode === 'Mitigator' ? '0 0 12px var(--accent-amber)' : 'none',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontWeight: 600
+                    }}>
+                      🛠️
+                    </div>
+                    <span style={{ fontSize: '0.72rem', marginTop: '6px', fontWeight: 600 }}>Mitigator</span>
+                  </div>
+
+                  <span style={{ color: 'var(--text-muted)' }}>➔</span>
+
+                  {/* Node 3: Reporter */}
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    opacity: multiAgentState.activeNode === 'Reporter' ? 1 : 0.45,
+                    transform: multiAgentState.activeNode === 'Reporter' ? 'scale(1.05)' : 'none',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <div style={{ 
+                      width: '42px', 
+                      height: '42px', 
+                      borderRadius: '50%', 
+                      backgroundColor: multiAgentState.activeNode === 'Reporter' ? 'var(--accent-green)' : 'var(--bg-tertiary)',
+                      border: '2px solid rgba(255,255,255,0.08)',
+                      boxShadow: multiAgentState.activeNode === 'Reporter' ? '0 0 12px var(--accent-green)' : 'none',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontWeight: 600
+                    }}>
+                      📋
+                    </div>
+                    <span style={{ fontSize: '0.72rem', marginTop: '6px', fontWeight: 600 }}>Reporter</span>
+                  </div>
+
+                </div>
+
+                {multiAgentState.activeNode !== 'idle' ? (
+                  <div style={{ padding: '8px 12px', backgroundColor: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.1)', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'left' }}>
+                    <span className="blink-green status-dot"></span> Orchestrator executing **{multiAgentState.activeNode}** on event alert from source: <code style={{ color: '#fff' }}>{multiAgentState.currentThreat?.ip}</code>.
+                  </div>
+                ) : (
+                  <div style={{ padding: '8px 12px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    🟢 Orchestrator is listening on `telemetry:threat_queue`. No active incidents.
+                  </div>
+                )}
+              </div>
+
+              {/* Incident Reports Feed */}
+              <div className="glass-panel">
+                <h3>📋 Compiled Incident Reports ({incidentReports.length})</h3>
+                <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.82rem' }}>
+                  Markdown logs produced by the multi-agent incident response system.
+                </p>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '280px', overflowY: 'auto' }}>
+                  {incidentReports.length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-dim)', fontStyle: 'italic', fontSize: '0.85rem' }}>
+                      No incident reports generated yet. Trigger a DDoS scenario to watch the system respond.
+                    </div>
+                  ) : (
+                    incidentReports.map((report, i) => (
+                      <div key={i} style={{ padding: '14px', backgroundColor: '#05070d', border: '1px solid var(--border-color)', borderRadius: '8px', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px', marginBottom: '8px', fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                          <strong>IP: {report.ip} ({report.type})</strong>
+                          <span>{new Date(report.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <pre style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: '0.8rem', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                          {report.reportMarkdown}
+                        </pre>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Background Agent Actions Log */}
+              <div className="glass-panel">
+                <h3>📜 Heuristics Agent Decisions Feed</h3>
+                <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.82rem' }}>
+                  Capped stack of autonomous decisions committed to telemetry.
+                </p>
+                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: '#05070d' }}>
+                  <table className="data-table" style={{ fontSize: '0.78rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>IP Address</th>
+                        <th>Action</th>
+                        <th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {agentLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+                            No autonomous operations triggered yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        agentLogs.map((log, i) => (
+                          <tr key={i}>
+                            <td>{new Date(log.timestamp).toLocaleTimeString()}</td>
+                            <td style={{ fontFamily: 'var(--font-mono)' }}>{log.ip}</td>
+                            <td><span style={{ padding: '2px 6px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>{log.action}</span></td>
+                            <td style={{ color: 'var(--text-dim)' }}>{log.reason}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+            
+          </div>
+
+          {/* Seeded API Keys Control Table */}
+          <div className="glass-panel">
+            <h3>🔑 API Credentials Active Keyspace ({apiKeysList.length})</h3>
+            <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.85rem' }}>
+              Manage access permissions. Temporarily suspend key validation to block compromised credentials.
+            </p>
+            <div className="data-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Developer Identity</th>
+                    <th>API Key Token</th>
+                    <th>Rate Limit Quota</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Action Toggle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {apiKeysList.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '24px' }}>
+                        No API key records detected in keyspace database.
+                      </td>
+                    </tr>
+                  ) : (
+                    apiKeysList.map((key, i) => (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 600, color: '#fff' }}>{key.name}</td>
+                        <td><code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-blue)' }}>{key.apiKey}</code></td>
+                        <td>{key.limit} req / min</td>
+                        <td>
+                          <span style={{ 
+                            padding: '2px 8px', 
+                            borderRadius: '12px', 
+                            fontSize: '0.72rem', 
+                            fontWeight: 600,
+                            backgroundColor: key.active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: key.active ? 'var(--accent-green)' : 'var(--danger)'
+                          }}>
+                            {key.active ? 'Active' : 'Suspended'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right', padding: '6px 16px' }}>
+                          <button 
+                            className={`btn ${key.active ? 'btn-danger' : 'btn-primary'}`}
+                            style={{ padding: '4px 12px', fontSize: '0.75rem' }}
+                            onClick={() => toggleKeyStatus(key.apiKey, key.active)}
+                          >
+                            {key.active ? 'Suspend Key' : 'Activate Key'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       )}
 
