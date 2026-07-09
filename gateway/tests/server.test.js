@@ -324,4 +324,74 @@ test.describe('APIShield Gateway Tests', () => {
     assert.strictEqual(response.body.recentLogs.length, 1);
     assert.strictEqual(response.body.recentLogs[0].keyName, 'Alice');
   });
+
+  test('GET /api/v1/resource should proxy to dynamic downstream target', async () => {
+    const http = require('http');
+    let targetReached = false;
+
+    const mockDownstreamServer = http.createServer((req, res) => {
+      targetReached = true;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ message: 'Success from downstream server!' }));
+    });
+
+    await new Promise((resolve) => {
+      mockDownstreamServer.listen(0, '127.0.0.1', resolve);
+    });
+    const port = mockDownstreamServer.address().port;
+
+    const oldRoutes = process.env.PROXY_ROUTES;
+    process.env.PROXY_ROUTES = JSON.stringify({
+      '/api/v1/resource': `http://127.0.0.1:${port}/another-target`
+    });
+
+    await mockRedisClient.hSet('apikey:valid-test-key', {
+      name: 'Developer Proxy Test',
+      limit: '100',
+      active: 'true',
+      createdAt: new Date().toISOString()
+    });
+
+    delete require.cache[require.resolve('../server')];
+    const { app: proxyApp } = require('../server');
+
+    const response = await request(proxyApp)
+      .get('/api/v1/resource')
+      .set('x-api-key', 'valid-test-key')
+      .expect(200);
+
+    assert.strictEqual(targetReached, true);
+    assert.strictEqual(response.body.message, 'Success from downstream server!');
+
+    process.env.PROXY_ROUTES = oldRoutes;
+    mockDownstreamServer.close();
+  });
+
+  test('Proxy error should fallback to inline mock handler', async () => {
+    const oldRoutes = process.env.PROXY_ROUTES;
+    process.env.PROXY_ROUTES = JSON.stringify({
+      '/api/v1/resource': 'http://127.0.0.1:9999/does-not-exist'
+    });
+
+    await mockRedisClient.hSet('apikey:valid-test-key', {
+      name: 'Developer Fallback Test',
+      limit: '100',
+      active: 'true',
+      createdAt: new Date().toISOString()
+    });
+
+    delete require.cache[require.resolve('../server')];
+    const { app: fallbackApp } = require('../server');
+
+    const response = await request(fallbackApp)
+      .get('/api/v1/resource')
+      .set('x-api-key', 'valid-test-key')
+      .expect(200);
+
+    assert.strictEqual(response.body.status, 'success');
+    assert.match(response.body.data.message, /successfully traversed the Shield API Gateway/);
+
+    process.env.PROXY_ROUTES = oldRoutes;
+  });
 });
+

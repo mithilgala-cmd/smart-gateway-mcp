@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('redis');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 require('dotenv').config();
 
 const app = express();
@@ -209,6 +210,49 @@ function handleDownstreamInfo(req, res) {
 // Downstream routes
 app.get('/downstream/resource', handleDownstreamResource);
 app.get('/downstream/info', handleDownstreamInfo);
+
+// --- DYNAMIC PROXY ROUTING ---
+let routes = {};
+if (process.env.PROXY_ROUTES) {
+  try {
+    routes = JSON.parse(process.env.PROXY_ROUTES);
+  } catch (err) {
+    console.error('Failed to parse PROXY_ROUTES env var. Running in Demo Mode.', err);
+  }
+}
+
+Object.entries(routes).forEach(([routePath, targetUrl]) => {
+  try {
+    const url = new URL(targetUrl);
+    const targetHost = `${url.protocol}//${url.host}`;
+    const targetPath = url.pathname;
+
+    app.use(routePath, ipBlacklistMiddleware, apiSecurityMiddleware, createProxyMiddleware({
+      target: targetHost,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const parsedUrl = new URL(req.originalUrl, 'http://localhost');
+        const remainingQuery = parsedUrl.search;
+        return targetPath + remainingQuery;
+      },
+      on: {
+        error: (err, req, res) => {
+          console.error(`Proxy error for ${req.path}:`, err);
+          // Fallback to inline mock handlers if applicable
+          if (routePath === '/api/v1/resource') {
+            return handleDownstreamResource(req, res);
+          } else if (routePath === '/api/v1/info') {
+            return handleDownstreamInfo(req, res);
+          }
+          res.status(502).json({ error: 'Bad Gateway', message: 'Proxy request failed.' });
+        }
+      }
+    }));
+    console.log(`Configured dynamic proxy route: ${routePath} -> ${targetUrl}`);
+  } catch (err) {
+    console.error(`Failed to configure proxy route for ${routePath} -> ${targetUrl}:`, err);
+  }
+});
 
 // --- GATEWAY ROUTES ---
 // Apply IP Blacklist & API Security Middleware directly to gateway endpoints
