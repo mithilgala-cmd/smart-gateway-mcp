@@ -1,0 +1,51 @@
+# Horizontal Pod Autoscaling.
+#
+# Requires the metrics-server add-on (kubectl top pods must work) — this is what
+# feeds CPU utilization data to the autoscaler.
+#
+#   kind/minikube:  minikube addons enable metrics-server
+#   k3s:            see https://docs.k3s.io/observability/metrics
+#   cloud:          enabled by default
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gateway-hpa
+  namespace: apishield
+  labels:
+    app.kubernetes.io/part-of: apishield
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: gateway
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: mcp-server-hpa
+  namespace: apishield
+  labels:
+    app.kubernetes.io/part-of: apishield
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: mcp-server
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

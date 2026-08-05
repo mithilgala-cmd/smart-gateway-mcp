@@ -1,4 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+// Module-scope fallback data — Date.now() runs once at load time so React
+// render stays pure (satisfies react-hooks/purity).
+const INITIAL_SIMULATED_KEYS = {
+  'demo-key-123': { name: 'Demo Developer', limit: 60, tokens: 60, lastUpdated: Date.now() },
+  'apishield_premium_user': { name: 'SaaS Client Corp', limit: 120, tokens: 120, lastUpdated: Date.now() }
+};
+
+const INITIAL_SIMULATED_LOGS = [
+  { timestamp: new Date(Date.now() - 10000).toISOString(), path: '/api/v1/resource', ip: '127.0.0.1', keyName: 'Demo Developer', status: 200 },
+  { timestamp: new Date(Date.now() - 60000).toISOString(), path: '/api/v1/info', ip: '198.51.100.200', keyName: 'BLOCKED_IP', status: 403 }
+];
 
 function App() {
   const [activeTab, setActiveTab] = useState('developer');
@@ -21,8 +33,6 @@ function App() {
   const [testEndpoint, setTestEndpoint] = useState('/api/v1/resource');
   const [testerLoading, setTesterLoading] = useState(false);
   const [testResponse, setTestResponse] = useState(null);
-  const [spamActive, setSpamActive] = useState(false);
-
   // Live telemetry graphs state
   const [rpsHistory, setRpsHistory] = useState(Array(15).fill(0));
   const [latencyHistory, setLatencyHistory] = useState([
@@ -39,7 +49,6 @@ function App() {
   const [recentLogs, setRecentLogs] = useState([]);
   const [blacklist, setBlacklist] = useState([]);
   const [newBlockIp, setNewBlockIp] = useState('');
-  const [adminLoading, setAdminLoading] = useState(false);
 
   // AI Center Tab State
   const [chatInput, setChatInput] = useState('');
@@ -71,15 +80,9 @@ function App() {
 
   // Local fallback/simulation state (to gracefully bypass Render's 50s cold start)
   const [simulatedBlacklist, setSimulatedBlacklist] = useState(['198.51.100.200', '203.0.113.88']);
-  const [simulatedKeys, setSimulatedKeys] = useState({
-    'demo-key-123': { name: 'Demo Developer', limit: 60, tokens: 60, lastUpdated: Date.now() },
-    'apishield_premium_user': { name: 'SaaS Client Corp', limit: 120, tokens: 120, lastUpdated: Date.now() }
-  });
-  const [simulatedLogs, setSimulatedLogs] = useState([
-    { timestamp: new Date(Date.now() - 10000).toISOString(), path: '/api/v1/resource', ip: '127.0.0.1', keyName: 'Demo Developer', status: 200 },
-    { timestamp: new Date(Date.now() - 60000).toISOString(), path: '/api/v1/info', ip: '198.51.100.200', keyName: 'BLOCKED_IP', status: 403 }
-  ]);
-  const [simulatedMetrics, setSimulatedMetrics] = useState({ totalRequests: 2, rateLimited: 0, unauthorized: 1 });
+  const [simulatedKeys, setSimulatedKeys] = useState(INITIAL_SIMULATED_KEYS);
+  const [simulatedLogs, setSimulatedLogs] = useState(INITIAL_SIMULATED_LOGS);
+  const [, setSimulatedMetrics] = useState({ totalRequests: 2, rateLimited: 0, unauthorized: 1 });
   const [selectedRedisKey, setSelectedRedisKey] = useState('rate:limit:demo-key-123');
 
   // Info details popup state
@@ -161,14 +164,14 @@ function App() {
           setGatewayConnected(false);
           fallbackSimulationPoll();
         }
-      } catch (err) {
+      } catch {
         setGatewayConnected(false);
         fallbackSimulationPoll();
       }
 
       // 2. Ping n8n Webhook Endpoint
       try {
-        const res = await fetch(n8nUrl, { method: 'OPTIONS' });
+        await fetch(n8nUrl, { method: 'OPTIONS' });
         setN8nConnected(true);
       } catch (err) {
         if (err.message && err.message.includes('Failed to fetch')) {
@@ -213,7 +216,6 @@ function App() {
 
   // Local fallback simulator logic
   const runSimulatedRequest = (apiKey, endpoint, ip = '127.0.0.1') => {
-    const startTime = Date.now();
     setPipelineState('sending');
 
     // 1. IP Blacklist check
@@ -378,7 +380,7 @@ function App() {
       } else {
         throw new Error(data.message || 'Onboarding workflow failed.');
       }
-    } catch (err) {
+    } catch {
       console.warn('Real onboarding webhook unreachable. Seamless local simulation triggered.');
       const mockKey = `apishield_dev_${Math.random().toString(16).substring(2, 14)}`;
       
@@ -397,7 +399,7 @@ function App() {
             body: JSON.stringify({ name: devName, limit: devLimit, apiKey: mockKey })
           });
           addConsoleLog('POST', `Registered directly to running Gateway: ${mockKey}`, 200);
-        } catch (gateErr) {
+        } catch {
           addConsoleLog('POST', `Simulation fallback. Key registered locally: ${mockKey}`, 200);
         }
       } else {
@@ -590,7 +592,7 @@ function App() {
       } else {
         throw new Error('Chat failed');
       }
-    } catch (err) {
+    } catch {
       setTimeout(() => {
         let reply = "I am operating in Sandbox Mode (Offline). I can simulate basic command execution locally:";
         let commandExecuted = null;
@@ -627,11 +629,11 @@ function App() {
           reply = `Sandbox Mode: I found no matching rule for "${userMsg}". Try asking: *"Block IP 192.168.5.5"* or *"Show metrics"*.`;
         }
 
-        setChatMessages(prev => [...prev, { 
-          sender: 'ai', 
-          text: reply, 
+        setChatMessages(prev => [...prev, {
+          sender: 'ai',
+          text: reply,
           mode: 'sandbox_sim',
-          timestamp: new Date().toLocaleTimeString() 
+          timestamp: new Date().toLocaleTimeString()
         }]);
         if (commandExecuted) {
           addConsoleLog('SYS', `[AI Action] ${commandExecuted}`, 200);
@@ -706,7 +708,7 @@ function App() {
         addConsoleLog('SYS', `Successfully blacklisted IP: ${newBlockIp}`, 200);
         setNewBlockIp('');
       }
-    } catch (err) {
+    } catch {
       addConsoleLog('SYS', `Added IP ${newBlockIp} to blacklist database.`, 200);
       setSimulatedBlacklist(prev => [...prev, newBlockIp]);
       setNewBlockIp('');
@@ -724,7 +726,7 @@ function App() {
       if (res.ok) {
         addConsoleLog('SYS', `Successfully unblocked IP: ${ip}`, 200);
       }
-    } catch (err) {
+    } catch {
       addConsoleLog('SYS', `Restored network access for IP: ${ip}`, 200);
       setSimulatedBlacklist(prev => prev.filter(item => item !== ip));
     }
@@ -1015,6 +1017,12 @@ function App() {
                       {onboardingLoading ? 'Registering...' : 'Request Credentials'}
                     </button>
                   </div>
+
+                  {onboardingError && (
+                    <p style={{ color: 'var(--danger)', fontSize: '0.82rem', margin: '10px 0 0 0' }}>
+                      ⚠️ {onboardingError}
+                    </p>
+                  )}
                 </form>
 
                 {generatedKey && (

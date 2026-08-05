@@ -1,9 +1,15 @@
+# APIShield MCP Admin Server — SSE transport.
+#
+# The MCP server exposes only streaming endpoints (/sse, /messages) with no HTTP
+# health route, so probes use a TCP socket check against the listening port.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mcp-server
+  namespace: apishield
   labels:
     app: apishield-mcp
+    app.kubernetes.io/part-of: apishield
 spec:
   replicas: 1
   selector:
@@ -14,30 +20,80 @@ spec:
       labels:
         app: apishield-mcp
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
         - name: mcp-server
           image: apishield-mcp-server:latest
           imagePullPolicy: IfNotPresent
+          ports:
+            - name: sse
+              containerPort: 8001
           env:
             - name: PORT
-              value: "8001"
-            - name: REDIS_URL
-              value: redis://redis:6379
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: MCP_PORT
             - name: TRANSPORT
-              value: sse
-          ports:
-            - containerPort: 8001
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: TRANSPORT
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: REDIS_PASSWORD
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@$(REDIS_HOST):$(REDIS_PORT)"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket:
+              port: sse
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: sse
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: mcp-server
+  namespace: apishield
   labels:
     app: apishield-mcp
+    app.kubernetes.io/part-of: apishield
 spec:
+  type: ClusterIP
   ports:
-    - port: 8001
+    - name: sse
+      port: 8001
       targetPort: 8001
   selector:
     app: apishield-mcp
-  type: LoadBalancer

@@ -1,0 +1,12 @@
+# Dedicated namespace for the APIShield stack.
+#
+# Every manifest in this directory declares `namespace: apishield` so the whole
+# stack can be applied with a single `kubectl apply -f k8s/` (namespace.yaml is
+# applied first because it sorts alphabetically before the deployments).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apishield
+  labels:
+    app.kubernetes.io/part-of: apishield
+    app.kubernetes.io/name: apishield

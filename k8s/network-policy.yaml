@@ -1,0 +1,312 @@
+# Zero-trust network segmentation.
+#
+# A default-deny NetworkPolicy blocks all traffic between pods; the allow rules
+# below re-open only the paths the stack actually uses (verified against the app
+# source): gateway/mcp/agents → redis, n8n → postgres, n8n → gateway webhooks,
+# and ingress-controller → every public service.
+#
+# Every egress rule also allows DNS (UDP/TCP 53 → kube-dns); without it, name
+# resolution for "redis", "postgres", etc. fails and the whole stack goes down.
+#
+# Kubelet health probes bypass NetworkPolicy, so readiness/liveness probes keep
+# working under the default-deny policy.
+#
+# Debugging: kubectl -n apishield describe networkpolicy
+# Toggle off (last resort):  kubectl -n apishield delete networkpolicy --all
+---
+# 1. Default deny — block all pod-to-pod traffic unless explicitly allowed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: apishield
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis-ingress
+  namespace: apishield
+spec:
+  podSelector:
+    matchLabels:
+      app: apishield-redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: apishield-gateway
+        - podSelector:
+            matchLabels:
+              app: apishield-mcp
+        - podSelector:
+            matchLabels:
+              app: apishield-security-agent
+        - podSelector:
+            matchLabels:
+              app: apishield-multi-agent
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres-ingress
+  namespace: apishield
+spec:
+  podSelector:
+    matchLabels:
+      app: apishield-postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: apishield-n8n
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway
+  namespace: apishield
+spec:
+  podSelector:
+    matchLabels:
+      app: apishield-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app: apishield-n8n # n8n webhook nodes call the gateway
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: apishield-redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend
+  namespace: apishield
+spec:
+  podSelector:
+    matchLabels:
+      app: apishield-frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mcp-server
+  namespace: apishield
+spec:
+  podSelector:
+    matchLabels:
+      app: apishield-mcp
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8001
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: apishield-redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-n8n
+  namespace: apishield
+spec:
+  podSelector:
+    matchLabels:
+      app: apishield-n8n
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 5678
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: apishield-postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: apishield-gateway
+      ports:
+        - protocol: TCP
+          port: 8000
+    # n8n workflow nodes often call public APIs. Enable only if your workflows
+    # need internet egress:
+    # - to:
+    #     - ipBlock:
+    #         cidr: 0.0.0.0/0
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-security-agent
+  namespace: apishield
+spec:
+  podSelector:
+    matchLabels:
+      app: apishield-security-agent
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: apishield-redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-multi-agent-orchestrator
+  namespace: apishield
+spec:
+  podSelector:
+    matchLabels:
+      app: apishield-multi-agent
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: apishield-redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

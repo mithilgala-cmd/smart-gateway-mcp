@@ -1,0 +1,16 @@
+# PodDisruptionBudget — guarantees at least 1 gateway replica stays available
+# during voluntary disruptions (node drains, cluster upgrades, autoscaler
+# evictions). Stateful single-replica workloads (postgres/redis/n8n) are not
+# covered by a PDB because evicting their single pod is never safe.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway-pdb
+  namespace: apishield
+  labels:
+    app.kubernetes.io/part-of: apishield
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: apishield-gateway

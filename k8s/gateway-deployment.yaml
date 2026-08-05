@@ -1,11 +1,21 @@
+# APIShield Smart API Gateway — production-hardened deployment.
+#
+# - 2 replicas behind a ClusterIP service (exposed via k8s/ingress.yaml)
+# - Resource requests/limits so the scheduler can pack pods safely
+# - Readiness + liveness probes on /admin/metrics (unauthenticated health route)
+# - Redis credentials and RSA encryption keys injected from the apishield-secrets
+#   Secret — never from plaintext values in the manifest
+# - Runs as a non-root user (UID 1000) for defense-in-depth
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gateway
+  namespace: apishield
   labels:
     app: apishield-gateway
+    app.kubernetes.io/part-of: apishield
 spec:
-  replicas: 2 # Scale to 2 replicas for load balancing demonstration
+  replicas: 2
   selector:
     matchLabels:
       app: apishield-gateway
@@ -14,40 +24,90 @@ spec:
       labels:
         app: apishield-gateway
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
         - name: gateway
-          image: apishield-gateway:latest # Pulls local image built via docker
-          imagePullPolicy: IfNotPresent # Allows Kubernetes to use locally built images
+          image: apishield-gateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
           env:
             - name: PORT
-              value: "8000"
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: PORT
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: REDIS_PASSWORD
+            # URL form: redis://:<password>@<host>:<port>  ($(VAR) is expanded by k8s)
             - name: REDIS_URL
-              value: redis://redis:6379
-          ports:
-            - containerPort: 8000
+              value: "redis://:$(REDIS_PASSWORD)@$(REDIS_HOST):$(REDIS_PORT)"
+            # Shared RSA pair — lets the encrypting agents decrypt each other's
+            # threat events. Both gateway pods MUST see the same keys.
+            - name: ENCRYPTION_RSA_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: ENCRYPTION_RSA_PRIVATE_KEY
+            - name: ENCRYPTION_RSA_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: ENCRYPTION_RSA_PUBLIC_KEY
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
           readinessProbe:
             httpGet:
               path: /admin/metrics
-              port: 8000
+              port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /admin/metrics
-              port: 8000
+              port: http
             initialDelaySeconds: 15
             periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: gateway
+  namespace: apishield
   labels:
     app: apishield-gateway
+    app.kubernetes.io/part-of: apishield
 spec:
+  type: ClusterIP
   ports:
-    - port: 8000
+    - name: http
+      port: 8000
       targetPort: 8000
   selector:
     app: apishield-gateway
-  type: LoadBalancer

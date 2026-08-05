@@ -1,9 +1,18 @@
+# Redis 7 — rate limiting, telemetry, blacklist, and the encrypted threat queue.
+#
+# Production hardening vs. the original manifest:
+#   - Authentication enabled (--requirepass) with the password injected from the
+#     apishield-secrets Secret (avoids the plaintext/redis-without-auth default)
+#   - AOF persistence enabled (--appendonly yes) on the PVC-mounted /data dir
+#   - tcpSocket probes (redis-cli would need the password, so a TCP check is used)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: redis-pvc
+  namespace: apishield
   labels:
     app: apishield-redis
+    app.kubernetes.io/part-of: apishield
 spec:
   accessModes:
     - ReadWriteOnce
@@ -15,8 +24,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
+  namespace: apishield
   labels:
     app: apishield-redis
+    app.kubernetes.io/part-of: apishield
 spec:
   replicas: 1
   selector:
@@ -30,8 +41,45 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["redis-server"]
+          args:
+            - "--requirepass"
+            - "$(REDIS_PASSWORD)"
+            - "--appendonly"
+            - "yes"
+            - "--appendfsync"
+            - "everysec"
           ports:
-            - containerPort: 6379
+            - name: redis
+              containerPort: 6379
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: REDIS_PASSWORD
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
           volumeMounts:
             - name: redis-storage
               mountPath: /data
@@ -44,12 +92,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis
+  namespace: apishield
   labels:
     app: apishield-redis
+    app.kubernetes.io/part-of: apishield
 spec:
+  type: ClusterIP
   ports:
-    - port: 6379
+    - name: redis
+      port: 6379
       targetPort: 6379
   selector:
     app: apishield-redis
-  type: ClusterIP

@@ -1,0 +1,22 @@
+# Non-secret, environment-agnostic configuration shared across the stack.
+#
+# Secrets (passwords, RSA keys) live in the `apishield-secrets` Secret and are
+# deliberately NOT here — see secrets.example.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apishield-config
+  namespace: apishield
+  labels:
+    app.kubernetes.io/part-of: apishield
+data:
+  # Gateway HTTP port
+  PORT: "8000"
+  # MCP Server HTTP port + transport mode (sse or stdio)
+  MCP_PORT: "8001"
+  TRANSPORT: "sse"
+  # Disable n8n basic-auth for the demo UI (enable in production)
+  N8N_BASIC_AUTH_ACTIVE: "false"
+  # Redis service coordinates (used to build REDIS_URL)
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"

@@ -1,9 +1,17 @@
+# n8n workflow automation engine — production-hardened deployment.
+#
+# - PostgreSQL-backed (credentials injected from the apishield-secrets Secret)
+# - /healthz probe (n8n's built-in health endpoint)
+# - PVC-backed persistence for workflow definitions & keys
+# - ClusterIP service exposed via k8s/ingress.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: n8n-pvc
+  namespace: apishield
   labels:
     app: apishield-n8n
+    app.kubernetes.io/part-of: apishield
 spec:
   accessModes:
     - ReadWriteOnce
@@ -15,8 +23,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: n8n
+  namespace: apishield
   labels:
     app: apishield-n8n
+    app.kubernetes.io/part-of: apishield
 spec:
   replicas: 1
   selector:
@@ -30,6 +40,10 @@ spec:
       containers:
         - name: n8n
           image: n8nio/n8n:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: web
+              containerPort: 5678
           env:
             - name: DB_TYPE
               value: postgresdb
@@ -38,15 +52,48 @@ spec:
             - name: DB_POSTGRESDB_PORT
               value: "5432"
             - name: DB_POSTGRESDB_DATABASE
-              value: n8n_db
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: POSTGRES_DB
             - name: DB_POSTGRESDB_USER
-              value: n8n_user
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: POSTGRES_USER
             - name: DB_POSTGRESDB_PASSWORD
-              value: n8n_password
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: POSTGRES_PASSWORD
             - name: N8N_BASIC_AUTH_ACTIVE
-              value: "false"
-          ports:
-            - containerPort: 5678
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: N8N_BASIC_AUTH_ACTIVE
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: web
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: web
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: n8n-storage
               mountPath: /home/node/.n8n
@@ -59,12 +106,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: n8n
+  namespace: apishield
   labels:
     app: apishield-n8n
+    app.kubernetes.io/part-of: apishield
 spec:
+  type: ClusterIP
   ports:
-    - port: 5678
+    - name: web
+      port: 5678
       targetPort: 5678
   selector:
     app: apishield-n8n
-  type: LoadBalancer

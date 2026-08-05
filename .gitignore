@@ -29,6 +29,9 @@ postgres_data/
 redis_data/
 n8n_data/
 
+# Kubernetes generated secrets (regenerate via k8s/generate-secrets.sh)
+k8s/secrets.yaml
+
 # IDEs and Editors
 .idea/
 .vscode/

@@ -1,0 +1,140 @@
+# Autonomous Security Agent + Multi-Agent Orchestrator daemons.
+#
+# These two daemons power the flagship "self-healing" capability: the security
+# agent scans recent telemetry, escalates threats onto the encrypted Redis
+# threat queue, and the orchestrator runs the Auditor → Mitigator → Reporter
+# workflow. Both use the gateway image (which bundles security-agent.js,
+# multi-agent-orchestrator.js and encryption-util.js) with a command override.
+#
+# CRITICAL: both daemons mount the SAME RSA keys from the apishield-secrets
+# Secret, so events encrypted by the security agent can be decrypted by the
+# orchestrator. If the keys ever diverge, decryption silently fails.
+#
+# Probes: these are long-lived pollers with no HTTP surface, so they have no
+# probes — Kubernetes restarts a container if its process dies, and the daemons
+# self-heal from Redis outages via exponential backoff.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-agent
+  namespace: apishield
+  labels:
+    app: apishield-security-agent
+    app.kubernetes.io/part-of: apishield
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apishield-security-agent
+  template:
+    metadata:
+      labels:
+        app: apishield-security-agent
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: security-agent
+          image: apishield-gateway:latest
+          imagePullPolicy: IfNotPresent
+          command: ["node", "security-agent.js"]
+          env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: REDIS_PASSWORD
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@$(REDIS_HOST):$(REDIS_PORT)"
+            - name: ENCRYPTION_RSA_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: ENCRYPTION_RSA_PRIVATE_KEY
+            - name: ENCRYPTION_RSA_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: ENCRYPTION_RSA_PUBLIC_KEY
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multi-agent-orchestrator
+  namespace: apishield
+  labels:
+    app: apishield-multi-agent
+    app.kubernetes.io/part-of: apishield
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apishield-multi-agent
+  template:
+    metadata:
+      labels:
+        app: apishield-multi-agent
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: multi-agent-orchestrator
+          image: apishield-gateway:latest
+          imagePullPolicy: IfNotPresent
+          command: ["node", "multi-agent-orchestrator.js"]
+          env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: apishield-config
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: REDIS_PASSWORD
+            - name: REDIS_URL
+              value: "redis://:$(REDIS_PASSWORD)@$(REDIS_HOST):$(REDIS_PORT)"
+            - name: ENCRYPTION_RSA_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: ENCRYPTION_RSA_PRIVATE_KEY
+            - name: ENCRYPTION_RSA_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apishield-secrets
+                  key: ENCRYPTION_RSA_PUBLIC_KEY
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

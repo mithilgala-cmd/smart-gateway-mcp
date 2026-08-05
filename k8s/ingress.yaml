@@ -1,0 +1,82 @@
+# NGINX Ingress — single entry point for the whole stack.
+#
+# Host-based routing:
+#   apishield.local      → Developer Console (React SPA)
+#   api.apishield.local  → API Gateway (admin + proxied APIs)
+#   mcp.apishield.local  → MCP Admin Server (SSE stream)
+#   n8n.apishield.local  → n8n dashboard
+#
+# Prerequisites:
+#   - NGINX Ingress Controller installed (helm: helm install ingress-nginx
+#     ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace)
+#   - For local clusters, add the hosts to your /etc/hosts, or use a wildcard
+#     DNS like *.apishield.local → cluster IP.
+#
+# The proxy-read-timeout annotations are required for the MCP server's
+# long-lived SSE stream, which would otherwise be cut off by nginx's 60s default.
+#
+# TLS: for production, install cert-manager and uncomment the tls block below,
+# pointing at a ClusterIssuer. See k8s/README.md for the full example.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apishield-ingress
+  namespace: apishield
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # nginx.ingress.kubernetes.io/auth-type: basic          # optional HTTP auth
+    # nginx.ingress.kubernetes.io/auth-secret: apishield-basic-auth
+    # nginx.ingress.kubernetes.io/auth-realm: "APIShield Admin"
+  labels:
+    app.kubernetes.io/part-of: apishield
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: apishield.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+    - host: api.apishield.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8000
+    - host: mcp.apishield.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mcp-server
+                port:
+                  number: 8001
+    - host: n8n.apishield.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: n8n
+                port:
+                  number: 5678
+  # tls:
+  #   - hosts:
+  #       - apishield.local
+  #       - api.apishield.local
+  #       - mcp.apishield.local
+  #       - n8n.apishield.local
+  #     secretName: apishield-tls
