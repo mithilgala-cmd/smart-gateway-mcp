@@ -1,126 +1,79 @@
 /**
- * Autonomous Security Agent for APIShield Gateway
+ * Autonomous Security Agent for the APIShield Smart Gateway
  *
- * This agent monitors incoming request telemetry to detect and respond to security threats
- * in real-time. It implements autonomous threat detection and response capabilities,
- * including IP blocking and credential suspension based on configurable thresholds.
+ * ## Role in the Architecture
+ *
+ * The Security Agent is the first line of automated defense in the gateway's
+ * autonomous threat-response pipeline. It runs as a background daemon that
+ * periodically scans the recent request telemetry stored in Redis, aggregates
+ * violations per source IP over a sliding 15-second window, and escalates
+ * threats to the Multi-Agent Orchestrator.
+ *
+ * ## Data Flow (encrypted)
+ *
+ * ```
+ * Gateway telemetry (Redis) ──► Security Agent (scan)
+ *        │                             │
+ *        │                             ├─► block IP instantly (fail-safe)
+ *        │                             └─► encrypt(AES-256-GCM + RSA-OAEP)
+ *        │                                     │
+ *        └─────────────────────────────────────▼
+ *                              telemetry:threat_queue (Redis)
+ *                                          │
+ *                                          ▼
+ *                            Multi-Agent Orchestrator (decrypt)
+ * ```
+ *
+ * Threat events are serialized and encrypted with the shared hybrid AES-RSA
+ * scheme ({@link module:gateway/encryption-util}) before being pushed to the
+ * Redis threat queue, so payloads are never persisted or read in plaintext by
+ * any consumer that lacks the RSA private key.
  *
  * @module gateway/security-agent
  * @requires redis
- * @requires crypto
+ * @requires ./encryption-util
  * @requires dotenv
  */
 
 const { createClient } = require('redis');
-const crypto = require('crypto');
+const { encryptData } = require('./encryption-util');
 require('dotenv').config();
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const redisClient = createClient({ url: REDIS_URL });
 
-// Encryption utilities for securing threat queue data between Security Agent and Multi-Agent Orchestrator
-const EncryptionUtil = (function() {
-  let rsaPrivateKey = null;
-  let rsaPublicKey = null;
-
-  // Initialize RSA keys from environment or generate
-  function init() {
-    const privateKeyEnv = process.env.ENCRYPTION_RSA_PRIVATE_KEY;
-    const publicKeyEnv = process.env.ENCRYPTION_RSA_PUBLIC_KEY;
-
-    if (privateKeyEnv && publicKeyEnv) {
-      try {
-        rsaPrivateKey = crypto.createPrivateKey(privateKeyEnv);
-        rsaPublicKey = crypto.createPublicKey(publicKeyEnv);
-        return;
-      } catch (e) {
-        console.error('Failed to load RSA keys from environment, generating new ones', e);
-      }
-    }
-
-    // Generate a new key pair
-    const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem'
-      },
-      privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem'
-      }
-    });
-
-    rsaPrivateKey = crypto.createPrivateKey(privateKey);
-    rsaPublicKey = crypto.createPublicKey(publicKey);
-
-    console.warn('WARNING: Generated new RSA encryption keys. For production, set ENCRYPTION_RSA_PRIVATE_KEY and ENCRYPTION_RSA_PUBLIC_KEY environment variables.');
-  }
-
-  init();
-
-  function encryptData(data) {
-    // Generate a random AES key
-    const aesKey = crypto.randomBytes(32);
-    // Generate a random IV for GCM
-    const iv = crypto.randomBytes(12);
-
-    // Encrypt data with AES-GCM
-    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
-    let ciphertext = cipher.update(data, 'utf8', 'base64');
-    ciphertext += cipher.final('base64');
-    const authTag = cipher.getAuthTag();
-
-    // Encrypt the AES key with RSA public key
-    const encryptedAesKey = rsaPublicKey.encrypt(
-      aesKey,
-      crypto.constants.RSA_PKCS1_OAEP_PADDING
-    );
-
-    return {
-      iv: iv.toString('base64'),
-      encryptedAesKey: encryptedAesKey.toString('base64'),
-      ciphertext: ciphertext,
-      authTag: authTag.toString('base64')
-    };
-  }
-
-  function decryptData(encryptedData) {
-    // Parse if it's a string
-    if (typeof encryptedData === 'string') {
-      encryptedData = JSON.parse(encryptedData);
-    }
-
-    // Decrypt the AES key with RSA private key
-    const aesKey = rsaPrivateKey.decrypt(
-      Buffer.from(encryptedData.encryptedAesKey, 'base64'),
-      crypto.constants.RSA_PKCS1_OAEP_PADDING
-    );
-
-    // Decrypt the data with AES-GCM
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      aesKey,
-      Buffer.from(encryptedData.iv, 'base64')
-    );
-    decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'base64'));
-
-    let decrypted = decipher.update(encryptedData.ciphertext, 'base64', 'utf8');
-    decrypted += decipher.final('utf8');
-
-    return decrypted;
-  }
-
-  return { encryptData, decryptData };
-})();
+/** Polling interval between telemetry scans. */
+const SCAN_INTERVAL_MS = 5000;
+/** Sliding window used to count violations per IP. */
+const VIOLATION_WINDOW_MS = 15000;
+/** Maximum number of recent telemetry entries scanned per cycle. */
+const TELEMETRY_SCAN_LIMIT = 100;
+/** Maximum number of agent decision logs retained. */
+const AGENT_LOG_LIMIT = 99;
+/** Redis key storing the agent's on/off switch. */
+const CONFIG_ACTIVE_KEY = 'config:security_agent_active';
 
 redisClient.on('error', (err) => console.error('Security Agent Redis Client Error', err));
 redisClient.on('connect', () => console.log('Security Agent connected to Redis'));
 
+/**
+ * Core scan-and-respond cycle.
+ *
+ * Reads recent gateway telemetry from Redis, aggregates rate-limit (429) and
+ * auth-failure (401) violations per source IP over the sliding window, and for
+ * every IP that crosses its configured threshold:
+ *
+ *  1. Encrypts a threat event and pushes it onto `telemetry:threat_queue` for
+ *     the Multi-Agent Orchestrator.
+ *  2. Immediately blocks the IP (fail-safe) by adding it to `blacklist:ips`.
+ *  3. Appends a decision record to `telemetry:agent_logs`.
+ *
+ * @returns {Promise<void>} Resolves when the scan completes.
+ */
 async function analyzeAndMitigate() {
   try {
     // 1. Check if agent is enabled
-    const activeRaw = await redisClient.get('config:security_agent_active');
+    const activeRaw = await redisClient.get(CONFIG_ACTIVE_KEY);
     if (activeRaw === 'false') {
       return;
     }
@@ -129,21 +82,26 @@ async function analyzeAndMitigate() {
     const max429 = parseInt(await redisClient.get('config:max_429_violations') || '5', 10);
     const max401 = parseInt(await redisClient.get('config:max_401_violations') || '5', 10);
 
-    // 3. Fetch recent requests log (capped at 100)
-    const recentLogs = await redisClient.lRange('telemetry:recent_requests', 0, 99);
-    const parsedLogs = recentLogs.map(log => JSON.parse(log));
+    // 3. Fetch recent requests log (capped at TELEMETRY_SCAN_LIMIT)
+    const recentLogs = await redisClient.lRange('telemetry:recent_requests', 0, TELEMETRY_SCAN_LIMIT - 1);
+    const parsedLogs = recentLogs.map(log => {
+      try {
+        return JSON.parse(log);
+      } catch (err) {
+        return null; // Skip malformed entries
+      }
+    }).filter(Boolean);
 
     // Get current blacklist to avoid re-blocking
     const blacklist = new Set(await redisClient.sMembers('blacklist:ips'));
 
-    // 4. Calculate violations per IP in the last 15 seconds
+    // 4. Calculate violations per IP within the sliding window
     const now = Date.now();
-    const WINDOW_MS = 15000;
     const ipMetrics = {};
 
     parsedLogs.forEach(log => {
       const logTime = new Date(log.timestamp).getTime();
-      if (now - logTime > WINDOW_MS) return; // Skip older logs
+      if (Number.isNaN(logTime) || now - logTime > VIOLATION_WINDOW_MS) return; // Skip stale logs
       if (!log.ip || blacklist.has(log.ip)) return; // Skip empty or already blocked IPs
 
       if (!ipMetrics[log.ip]) {
@@ -197,10 +155,9 @@ async function analyzeAndMitigate() {
           timestamp: new Date().toISOString()
         };
 
-        // Queue threat event for Multi-Agent Orchestrator
-        const threatEventJSON = JSON.stringify(threatEvent);
-        const encrypted = EncryptionUtil.encryptData(threatEventJSON);
-        await redisClient.lPush('telemetry:threat_queue', JSON.stringify(encrypted));
+        // Queue the encrypted threat event for the Multi-Agent Orchestrator.
+        const encrypted = encryptData(JSON.stringify(threatEvent));
+        await redisClient.lPush('telemetry:threat_queue', encrypted);
 
         // Block IP instantly (fail-safe mitigation)
         await redisClient.sAdd('blacklist:ips', ip);
@@ -214,7 +171,7 @@ async function analyzeAndMitigate() {
           severity: 'HIGH'
         };
         await redisClient.lPush('telemetry:agent_logs', JSON.stringify(agentLog));
-        await redisClient.lTrim('telemetry:agent_logs', 0, 99);
+        await redisClient.lTrim('telemetry:agent_logs', 0, AGENT_LOG_LIMIT);
       }
     }
   } catch (err) {
@@ -222,19 +179,27 @@ async function analyzeAndMitigate() {
   }
 }
 
+/**
+ * Bootstrap the daemon.
+ *
+ * Connects to Redis, seeds default configuration values on first run, and
+ * schedules {@link analyzeAndMitigate} on a fixed interval.
+ *
+ * @returns {Promise<void>} Resolves once the daemon is polling.
+ */
 async function start() {
   await redisClient.connect();
-  
+
   // Set default config if not initialized
-  const active = await redisClient.get('config:security_agent_active');
+  const active = await redisClient.get(CONFIG_ACTIVE_KEY);
   if (active === null) {
-    await redisClient.set('config:security_agent_active', 'true');
+    await redisClient.set(CONFIG_ACTIVE_KEY, 'true');
     await redisClient.set('config:max_429_violations', '5');
     await redisClient.set('config:max_401_violations', '5');
   }
 
-  console.log('Autonomous Security Agent started, polling logs every 5s...');
-  setInterval(analyzeAndMitigate, 5000);
+  console.log(`Autonomous Security Agent started, polling logs every ${SCAN_INTERVAL_MS / 1000}s...`);
+  setInterval(analyzeAndMitigate, SCAN_INTERVAL_MS);
 }
 
 if (require.main === module) {
