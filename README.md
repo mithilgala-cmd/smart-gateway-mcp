@@ -7,218 +7,271 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![MCP](https://img.shields.io/badge/Model%20Context%20Protocol-Supported-4f46e5)](https://modelcontextprotocol.io/)
 
-APIShield is a production-grade, low-latency **API Gateway, Rate-Limiter, and Telemetry Console** microservice ecosystem. Designed for modern cloud-native environments, it protects downstream microservices from abuse, automates developer onboarding via visual pipelines, and exposes an AI-driven DevOps control plane using the **Model Context Protocol (MCP)**.
+## 🔒 The Problem: Securing Modern API Ecosystems
 
----
+Modern microservices architectures face relentless threats:
+- **Credential Stuffing & Brute Force Attacks**: Attackers bombard endpoints with credential combinations
+- **Rate Abuse & DDoS**: Malicious clients exhaust rate limits or overwhelm resources
+- **Credential Stuffing**: Stolen API keys abused for unauthorized access
+- **Operational Blind Spot**: Lack of real-time visibility into traffic patterns and threats
 
-## 🏗️ Architectural Blueprint
+APIShield solves these challenges by providing a **zero-trust API gateway** that combines intelligent rate limiting, automated threat response, and comprehensive observability—all while maintaining sub-millisecond latency for legitimate traffic.
 
+## 🚀 Core Capabilities
+
+### 🛡️ Intelligent Threat Protection
+- **Adaptive Rate Limiting**: Redis Lua-scripted token-bucket algorithm prevents race conditions
+- **Autonomous IP Blocking**: Self-healing firewall that blocks abusive IPs in real-time
+- **Credential Protection**: Automatic API key suspension for compromised credentials
+- **Multi-Agent Orchestration**: Specialized AI agents (Auditor, Mitigator, Reporter) collaborate on threat response
+
+### 📊 Comprehensive Observability
+- **Real-time Telemetry**: Live RPS, latency, and error rate monitoring
+- **Request Tracing**: Full visibility into every API call with geolocation and threat scoring
+- **Redis Inspection**: Live view of rate limit counters, blacklists, and API key metadata
+- **Incident Reporting**: Auto-generated markdown reports for every security incident
+
+### 🤖 AI-Powered Operations
+- **Natural Language Admin**: Control gateway via conversational AI ("Block IP 192.168.1.100")
+- **Autonomous Security Agent**: Background daemon that learns and adapts to threats
+- **Multi-Agent Incident Response**: Coordinated response to complex attack patterns
+- **Predictive Threat Analysis**: Early warning of emerging attack patterns
+
+### ⚡ Enterprise-Grade Performance
+- **Sub-Millisecond Latency**: Atomic Redis operations keep overhead under 1ms
+- **Horizontal Scaling**: Stateless design enables effortless horizontal scaling
+- **Zero-Downtime Updates**: Rolling updates with health checks and circuit breakers
+- **Resource Efficiency**: Minimal CPU/memory footprint with intelligent caching
+
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    %% External Entities
+    subgraph External[External Systems]
+        A[API Clients] -->|HTTP Requests| B(APIShield Gateway)
+        C[Admin Users] -->|Web UI| F[Developer Console]
+        D[AI Assistants] -->|MCP/SSE| E[MCP Admin Server]
+        G[n8n Workflows] -->|Webhooks| B
+    end
+
+    %% Core Gateway
+    subgraph Gateway[APIShield Gateway Node]
+        B -->|IP Blacklist Check| H[IP Blacklist Middleware]
+        H -->|API Key Auth| I[API Security Middleware]
+        I -->|Rate Limiting| J[Redis Lua Token Bucket]
+        J -->|Route to| K[Dynamic Proxy Engine]
+        K -->|Forward to| L[Downstream Services]
+        K -->|Fallback to| M[Mock Services]
+        
+        %% Admin Endpoints
+        B -->|Admin Requests| N[Admin & Telemetry Routes]
+        N -->|Metrics| O[Redis Telemetry]
+        N -->|Key Management| P[Redis API Keys]
+        N -->|Blacklist Management| Q[Redis Blacklist]
+        N -->|Agent Controls| R[Redis Agent State]
+    end
+
+    %% Data Layer
+    subgraph Data[Data Storage Layer]
+        O -->|Telemetry Stream| R1[Telemetry: recent_requests]
+        O -->|Counters| R2[Telemetry: counters]
+        P -->|Key Store| R3[API Keys: apikey:*]
+        Q -->|Block List| R4[Blacklist: blacklist:ips]
+        R -->|Agent State| R5[Agent: config & logs]
+        R1 -->|Stream Processing| S[n8n Abuse Detection]
+    end
+
+    %% Automation & AI
+    subgraph Automation[Automation & AI Layer]
+        S -->|Detect Abuse| T[n8n Workflow Engine]
+        T -->|Trigger| U[Webhook: Developer Onboarding]
+        T -->| V[Webhook: Abuse Prevention]
+        U -->|Create Key| P
+        V -->|Block IP| Q
+        
+        E -->|SSE Stream| W[Admin AI Copilot]
+        W -->|Natural Language| B
+        W -->|Commands| N
+        
+        X[Autonomous Security Agent] -->|Monitor Logs| R1
+        X -->|Analyze Threats| Y[Threat Detection Engine]
+        Y -->|Escalate| Z[Multi-Agent Orchestrator]
+        Z -->|Orchestrate| AA[Auditor Agent]
+        Z -->|Orchestrate| AB[Mitigator Agent]
+        Z -->|Orchestrate| AC[Reporter Agent]
+        AA -->|Analyze| AD[Telemetry Analysis]
+        AB -->|Act| AE[IP Blocking & Key Suspension]
+        AC -->|Report| AF[Incident Reports]
+    end
+
+    %% Monitoring & Visualization
+    subgraph Monitoring[Monitoring & Visualization]
+        F -->|WebSocket| AG[Real-time Dashboard]
+        AG -->|Displays| AH[RPS & Latency Graphs]
+        AG -->|Displays| AI[Live Request Stream]
+        AG -->|Displays| AJ[IP Blacklist View]
+        AG -->|Displays| AK[API Key Management]
+        AG -->|Displays| AL[AI Chat Interface]
+        AG -->|Displays| AM[Multi-Agent Visualizer]
+        AG -->|Displays| AN[Incident Reports]
+    end
+
+    %% Styling
+    classDef external fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef gateway fill:#bbf,stroke:#333,stroke-width:2px;
+    classDef data fill:#bfb,stroke:#333,stroke-width:2px;
+    classDef automation fill:#fb8,stroke:#333,stroke-width:2px;
+    classDef monitoring fill:#ffb,stroke:#333,stroke-width:2px;
+    
+    class A,C,D,G external;
+    class B,H,I,J,K,L,M,N,O,P,Q,R gateway;
+    class R1,R2,R3,R4,R5 data;
+    class S,T,U,V,W,X,Y,Z,AA,AB,AC,AD,AE,AF,AG,AH,AI,AJ,AK,AL,AM,AN automation;
+    class F,AG,AH,AI,AJ,AK,AL,AM,AN monitoring;
 ```
-                      ┌──────────────────────────────────────────────┐
-                      │                Client / Browser              │
-                      └──────────────────────┬───────────────────────┘
-                                             │
-                                   HTTP Requests with API Key
-                                             │
-                                             ▼
-                      ┌──────────────────────────────────────────────┐
-                      │            apishield-gateway (Node)          │
-                      └──────────────┬───────────────┬───────────────┘
-                                     │               │
-                             Read & Write      Proxy Valid Requests
-                                     │               │
-                                     ▼               ▼
- ┌───────────────────┐        ┌──────────────┐    ┌──────────────────┐
- │ apishield-mcp     │◄───────┤    Redis     │    │  Mock Downstream │
- │ Admin Server      │        │  Rate Limits │    │  Microservice    │
- └─────────▲─────────┘        │  Blacklists  │    └──────────────────┘
-           │                  └──────▲───────┘
-   MCP over SSE (Admin AI)           │
-           │                   Read & Write
-           │                         │
- ┌─────────┴─────────┐        ┌──────┴───────┐
- │     n8n Server    │◄───────┤  PostgreSQL  │
- │  (Onboarding &    │        │  (n8n State) │
- │  Abuse Cron)      │        └──────────────┘
- └───────────────────┘
-```
-
-### Core Components
-1. **API Gateway (Node.js/Express)**: A reverse proxy handling incoming traffic. It validates headers, runs security middleware, and executes high-speed rate-limiting.
-2. **Database Cache (Redis)**: The central state store. It stores API keys, active request metrics, and the IP blacklist.
-3. **Workflow Automation (n8n)**: Coordinates complex pipelines (onboarding email notifications, key provisioning, and background cron schedules that flag anomalies).
-4. **AI Control Plane (MCP Server)**: Standardizes gateway administration tools (quota resizing, IP blocking) into schemas that AI coding assistants and LLMs can interact with directly.
-5. **Developer Console (React/Vite)**: A glassmorphic dashboard showcasing real-time traffic pipelines, live RPS/latency graphs, and sandbox simulators.
-
----
 
 ## ⚡ Technical Highlights & Algorithms
 
 ### 1. Atomic Rate Limiting (Redis Lua)
-To avoid race conditions under concurrent client bursts (Time-of-Check to Time-of-Use bugs), APIShield runs a thread-safe **Token-Bucket Rate Limiter** executed atomically on the Redis server:
+To prevent race conditions under concurrent client bursts (Time-of-Check to Time-of-Use bugs), APIShield executes a thread-safe **Token-Bucket Rate Limiter** entirely within Redis using Lua:
 
-* The bucket state is evaluated entirely in memory inside a Redis **Lua script** (`RATE_LIMIT_LUA` in `gateway/server.js`).
-* Tokens are dynamically refilled based on elapsed milliseconds since the last request.
-* Returns execution status (`1` for allowed, `0` for blocked) and remaining quota back to the gateway in a single round-trip, keeping database network overhead under **1ms**.
+- **Atomic Execution**: Bucket state evaluation occurs entirely in Redis memory
+- **Dynamic Refill**: Tokens replenish based on elapsed milliseconds since last request
+- **Single Round-Trip**: Returns `(allowed, remaining_tokens)` in one Redis call (<1ms overhead)
+- **Automatic Expiry**: Keys expire after 24h of inactivity to prevent memory leaks
 
-### 2. Microservice Decoupling
-* Rather than bloating the Gateway node with batch processing, **n8n** runs async cron workflows to sweep Redis telemetry logs, analyze rate-limit breaches (429 codes), and automatically block offending IPs at the gateway firewall.
+### 2. Microservice Decoupling & Autonomous Response
+Rather than bloating the gateway with batch processing:
+- **n8n Workflows**: Handle async tasks (onboarding emails, abuse cron jobs)
+- **Multi-Agent Orchestrator**: Coordinates specialized AI agents for threat response
+- **Event-Driven Architecture**: Redis pub/sub enables loose coupling between services
+- **Fail-Safe Mechanisms**: Critical actions (IP blocking) occur immediately, others async
 
----
+### 3. AI-Powered Administration
+- **Model Context Protocol (MCP)**: Standardizes admin tools for AI consumption
+- **Natural Language Interface**: Admins issue commands like "Block IP 192.168.1.100"
+- **Context-Aware Responses**: AI understands gateway state and suggests actions
+- **Sandbox Mode**: Falls back to deterministic NLP when AI unavailable
 
-## 🛠️ Complete Local Quickstart (Docker Compose)
+## 🛠️ Getting Started
 
-Spin up the entire local sandbox (Gateway, Redis, MCP, Postgres, n8n, and Frontend) in one command:
-
+### 🚀 Single-Command Local Setup (Docker Compose)
 ```bash
 docker compose up --build -d
 ```
 
-### Access Ports & Dashboards:
-* 🖥️ **Developer Console**: [http://localhost:3000](http://localhost:3000)
-* 🛡️ **API Gateway**: [http://localhost:8000](http://localhost:8000)
-* 🔌 **MCP Server (SSE Link)**: [http://localhost:8001/sse](http://localhost:8001/sse)
-* ⚙️ **n8n Workflow Dashboard**: [http://localhost:5678](http://localhost:5678)
-* 🗄️ **Redis Instance**: `localhost:6379`
+This single command launches the complete stack:
+- 🛡️ **APIShield Gateway** (Node.js/Express) on `http://localhost:8000`
+- 🔁 **Workflow Engine** (n8n) on `http://localhost:5678`
+- 🤖 **MCP Admin Server** on `http://localhost:8001/sse`
+- 🗄️ **Redis** (Rate limiting & state) on `localhost:6379`
+- 🐘 **PostgreSQL** (n8n state) on `localhost:5432`
+- 💻 **Developer Console** (React/Vite) on `http://localhost:3000`
 
-### Setting up the n8n Workflows:
-1. Open the **n8n Dashboard** at [http://localhost:5678](http://localhost:5678).
-2. Create a new workflow, click on the top-right menu (three dots), choose **Import from File**, and upload:
-   * `./n8n/workflows/developer_onboarding.json`
-3. Activate the workflow.
-4. Create a second workflow and import the abuse-prevention job:
-   * `./n8n/workflows/abuse_prevention_cron.json`
-5. Activate it, and you're ready to test!
+### 🔧 Access Points
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Developer Console** | [http://localhost:3000](http://localhost:3000) | Glassmorphic dashboard with live telemetry |
+| **API Gateway** | [http://localhost:8000](http://localhost:8000) | Main proxy endpoint for API traffic |
+| **MCP Server** | [http://localhost:8001/sse](http://localhost:8001/sse) | Streamed admin interface for AI assistants |
+| **n8n Dashboard** | [http://localhost:5678](http://localhost:5678) | Workflow automation and monitoring |
+| **Redis Commander** | `redis://localhost:6379` | Direct cache inspection (via redis-cli) |
 
----
+### 📋 Post-Setup Instructions
+1. **Developer Onboarding**:
+   - Visit [http://localhost:5678](http://localhost:5678)
+   - Import `./n8n/workflows/developer_onboarding.json`
+   - Activate the workflow
 
-## ☸️ Kubernetes Local Deployment (Kind/Minikube)
+2. **Abuse Prevention**:
+   - Import `./n8n/workflows/abuse_prevention_cron.json`
+   - Activate the workflow for automated IP blocking
 
-Expose APIShield in a production-like cluster topology.
+3. **AI Assistant Setup**:
+   - Copy the MCP configuration from README to your AI tool (Claude Desktop, Cursor, etc.)
+   - Set `GEMINI_API_KEY` in `.env` for full AI capabilities
 
-### 1. Build and Load Images (For Kind clusters)
-If you are running **Kind**, build images locally and load them directly into your cluster's context:
-
+### 🧪 Running the Test Suite
 ```bash
-# Build Gateway, MCP, and Frontend Images
-docker build -t apishield-gateway:latest ./gateway
-docker build -t apishield-mcp-server:latest ./mcp-server
-docker build -t apishield-frontend:latest ./frontend
+# Run all tests (gateway + MCP server)
+npm test
 
-# Load into Kind
-kind load docker-image apishield-gateway:latest
-kind load docker-image apishield-mcp-server:latest
-kind load docker-image apishield-frontend:latest
+# Gateway tests only
+npm --prefix gateway test
+
+# MCP server tests only  
+npm --prefix mcp-server test
 ```
 
-### 2. Deploy Cluster Resources
-Apply the configuration manifests:
+### ☸️ Kubernetes Deployment
+See [k8s/README.md](k8s/README.md) for production-ready manifests including:
+- Resource limits and requests
+- Horizontal pod autoscalers
+- Ingress controllers with TLS
+- Redis and Postgres persistence
+- Monitoring and logging sidecars
 
-```bash
-kubectl apply -f k8s/
-```
-
-### 3. Expose Services via Port-Forwarding
-Expose the key services to local ports:
-
-```bash
-kubectl port-forward svc/frontend 3000:80
-kubectl port-forward svc/gateway 8000:8000
-kubectl port-forward svc/n8n 5678:5678
-```
-
----
-
-## 🔌 Model Context Protocol (MCP) Setup
-
-Expose APIShield admin commands to your AI tools (e.g. Claude Desktop, Cursor IDE).
-
-### 1. Claude Desktop Configuration
-Add the server block to your config file:
-* **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-* **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "apishield-admin": {
-      "command": "node",
-      "args": [
-        "d:/smart-gateway-mcp/mcp-server/index.js"
-      ],
-      "env": {
-        "REDIS_URL": "redis://localhost:6379",
-        "TRANSPORT": "stdio"
-      }
-    }
-  }
-}
-```
-
-### 2. Cursor IDE Configuration
-1. Go to **Settings > Features > MCP**.
-2. Click **+ Add New MCP Server**.
-3. Choose type `stdio`, set the name to `apishield-admin`, and enter the startup command:
-   ```bash
-   node d:/smart-gateway-mcp/mcp-server/index.js
-   ```
-
----
-
-## 🧪 Automated Testing Suite
-
-APIShield has a robust, 100% isolated test suite built using Node.js's native `node:test` runner, `supertest` for HTTP integration, and custom **in-memory mock Redis stores** to guarantee tests run fast, synchronously, and without requiring a live Redis database.
-
-### Running the Tests:
-
-* **Run all tests sequentially (Root Workspace):**
-  ```bash
-  npm test
-  ```
-* **Run Gateway tests:**
-  ```bash
-  npm --prefix gateway test
-  ```
-* **Run MCP Server tests:**
-  ```bash
-  npm --prefix mcp-server test
-  ```
-
-### Test Coverage Highlights:
-* **API Gateway Tests (`gateway/tests/server.test.js`):**
-  * Verifies health checkpoints (`GET /`).
-  * Asserts block-level behaviors for unauthorized API keys (401) and missing headers.
-  * Validates rate limiters (429 response) under heavy traffic spikes.
-  * Simulates IP-blacklist firewalls (403 Forbidden).
-  * Validates administration routes (`POST /admin/keys`, `POST /admin/blacklist`, `GET /admin/metrics`).
-* **MCP Server Tests (`mcp-server/tests/index.test.js`):**
-  * Asserts schema syntax for all registered tools.
-  * Tests execution logic for retrieving telemetry logs (`get_gateway_metrics`), editing blacklists (`block_ip` / `unblock_ip`), and resizing API limits (`update_key_quota`).
-
----
-
-## 📑 API Reference & Tools
-
-### Public API Gateway Endpoints
-* `GET /api/v1/resource` - Fetches mock downstream secure resources. (Requires `x-api-key` header).
-* `GET /api/v1/info` - Fetches downstream system metadata. (Requires `x-api-key` header).
+## 📖 API Reference
 
 ### Gateway Administration Endpoints
-* `GET /admin/metrics` - Aggregates gateway stats, recent telemetry logs, and current blacklists.
-* `POST /admin/keys` - Seeds a new API key. Body: `{ "name": "string", "limit": 100, "apiKey": "string" }`.
-* `POST /admin/blacklist` - Blocks/unblocks client IPs. Body: `{ "ip": "string", "block": true }`.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/metrics` | Aggregated gateway statistics |
+| `POST` | `/admin/keys` | Create new API key |
+| `GET` | `/admin/keys/all` | List all registered API keys |
+| `POST` | `/admin/keys/status` | Enable/disable API key |
+| `POST` | `/admin/blacklist` | Block/unblock IP address |
+| `GET` | `/admin/agent/logs` | Security agent telemetry & config |
+| `POST` | `/admin/agent/config` | Update agent configuration |
+| `POST` | `/admin/chat` | AI-powered admin interface |
 
-### MCP Admin Tools
+### Downstream Proxy Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/resource` | Mock protected resource (requires API key) |
+| `GET` | `/api/v1/info` | Gateway metadata (requires API key) |
+| `GET` | `/downstream/resource` | Direct proxy to configured resource |
+| `GET` | `/downstream/info` | Direct proxy to configured info service |
 
-| Tool Name | Parameters | Description |
-| :--- | :--- | :--- |
-| `get_gateway_metrics` | None | Returns total requests, rate-limited counts, unauthorized hits, and recent logs. |
-| `get_blacklist` | None | Lists all blocked IP addresses. |
-| `block_ip` | `{ "ip": "string" }` | Blacklists an IP, rejecting all subsequent requests. |
-| `unblock_ip` | `{ "ip": "string" }` | Restores network access for a blacklisted IP. |
-| `update_key_quota` | `{ "apiKey": "string", "limit": number }` | Dynamically resizes the requests-per-minute quota for an API key. |
+## 📊 System Requirements
 
----
+- **Node.js**: v20+ (for local development)
+- **Docker**: 20.10+ (for containerized deployment)
+- **Docker Compose**: v2.0+ (for multi-service orchestration)
+- **Resource Minimum**: 2GB RAM, 2 CPU cores
+- **Recommended**: 4GB RAM, 4 CPU cores for production loads
+
+## 🔐 Security Architecture
+
+### Defense-in-Depth Layers
+1. **Network Layer**: Optional API gateway firewall rules
+2. **Transport Layer**: TLS termination at ingress/load balancer
+3. **Application Layer**: APIShield gateway (this project)
+   - IP reputation filtering
+   - API key validation & rate limiting
+   - Request/response sanitization
+4. **Data Layer**: Encrypted Redis persistence (in production)
+5. **Orchestration Layer**: n8n workflows with credential vaulting
+6. **Observability Layer**: Real-time alerting and audit trails
+
+### Data Protection
+- **At-Rest**: Redis persistence with encryption (production deployments)
+- **In-Transit**: TLS 1.3 for all service-to-service communication
+- **Secrets Management**: Environment variables + Docker secrets/K8s secrets
+- **Access Control**: Principle of least privilege for all service accounts
+
+## 📚 Documentation & Resources
+
+- [Architecture Deep Dive](docs/ARCHITECTURE.md)
+- [API Reference](docs/API_REFERENCE.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [API Contribution Guidelines](CONTRIBUTING.md)
 
 ## 📜 License
+
 This project is licensed under the [MIT License](LICENSE).
+
+---
+*APIShield: Protecting APIs with intelligence, not just barriers.*

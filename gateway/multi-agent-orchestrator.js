@@ -1,8 +1,105 @@
 const { createClient } = require('redis');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const redisClient = createClient({ url: REDIS_URL });
+
+// Encryption utilities for securing threat queue data between Security Agent and Multi-Agent Orchestrator
+const EncryptionUtil = (function() {
+  let rsaPrivateKey = null;
+  let rsaPublicKey = null;
+
+  // Initialize RSA keys from environment or generate
+  function init() {
+    const privateKeyEnv = process.env.ENCRYPTION_RSA_PRIVATE_KEY;
+    const publicKeyEnv = process.env.ENCRYPTION_RSA_PUBLIC_KEY;
+
+    if (privateKeyEnv && publicKeyEnv) {
+      try {
+        rsaPrivateKey = crypto.createPrivateKey(privateKeyEnv);
+        rsaPublicKey = crypto.createPublicKey(publicKeyEnv);
+        return;
+      } catch (e) {
+        console.error('Failed to load RSA keys from environment, generating new ones', e);
+      }
+    }
+
+    // Generate a new key pair
+    const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: {
+        type: 'spki',
+        format: 'pem'
+      },
+      privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem'
+      }
+    });
+
+    rsaPrivateKey = crypto.createPrivateKey(privateKey);
+    rsaPublicKey = crypto.createPublicKey(publicKey);
+
+    console.warn('WARNING: Generated new RSA encryption keys. For production, set ENCRYPTION_RSA_PRIVATE_KEY and ENCRYPTION_RSA_PUBLIC_KEY environment variables.');
+  }
+
+  init();
+
+  function encryptData(data) {
+    // Generate a random AES key
+    const aesKey = crypto.randomBytes(32);
+    // Generate a random IV for GCM
+    const iv = crypto.randomBytes(12);
+
+    // Encrypt data with AES-GCM
+    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+    let ciphertext = cipher.update(data, 'utf8', 'base64');
+    ciphertext += cipher.final('base64');
+    const authTag = cipher.getAuthTag();
+
+    // Encrypt the AES key with RSA public key
+    const encryptedAesKey = rsaPublicKey.encrypt(
+      aesKey,
+      crypto.constants.RSA_PKCS1_OAEP_PADDING
+    );
+
+    return {
+      iv: iv.toString('base64'),
+      encryptedAesKey: encryptedAesKey.toString('base64'),
+      ciphertext: ciphertext,
+      authTag: authTag.toString('base64')
+    };
+  }
+
+  function decryptData(encryptedData) {
+    // Parse if it's a string
+    if (typeof encryptedData === 'string') {
+      encryptedData = JSON.parse(encryptedData);
+    }
+
+    // Decrypt the AES key with RSA private key
+    const aesKey = rsaPrivateKey.decrypt(
+      Buffer.from(encryptedData.encryptedAesKey, 'base64'),
+      crypto.constants.RSA_PKCS1_OAEP_PADDING
+    );
+
+    // Decrypt the data with AES-GCM
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      aesKey,
+      Buffer.from(encryptedData.iv, 'base64')
+    );
+    decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'base64'));
+
+    let decrypted = decipher.update(encryptedData.ciphertext, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+
+    return decrypted;
+  }
+
+  return { encryptData, decryptData };
+})();
 
 redisClient.on('error', (err) => console.error('Multi-Agent Redis Client Error', err));
 redisClient.on('connect', () => console.log('Multi-Agent Orchestrator connected to Redis'));
@@ -117,7 +214,9 @@ async function start() {
       // To run cleanly without blocking Node, we do a non-blocking poll with delay
       const rawEvent = await redisClient.rPop('telemetry:threat_queue');
       if (rawEvent) {
-        const threatEvent = JSON.parse(rawEvent);
+        const encryptedData = JSON.parse(rawEvent);
+        const decryptedData = EncryptionUtil.decryptData(encryptedData);
+        const threatEvent = JSON.parse(decryptedData);
         await runMultiAgentFlow(threatEvent);
       }
     } catch (err) {
