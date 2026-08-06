@@ -762,7 +762,7 @@ function App() {
       <div className="glass-panel resume-section" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h4 style={{ margin: 0, color: 'var(--accent-blue)', fontSize: '1rem' }}>
-            💼 Developer Resume Stack & Architectural Framework
+            Developer Resume Stack & Architectural Framework
           </h4>
           <button 
             className="btn btn-secondary" 
@@ -802,12 +802,12 @@ function App() {
         
         {/* Status Indicators & Simulator Banner */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-          <div className="glass-panel" style={{ padding: '6px 14px', display: 'flex', gap: '16px', borderRadius: '6px' }}>
-            <span style={{ fontSize: '0.85rem' }}>
+          <div className="header-status-pill">
+            <span>
               <span className={`status-dot ${gatewayConnected ? 'active' : 'error'}`}></span>
               Gateway: {gatewayConnected ? 'ONLINE' : 'OFFLINE'}
             </span>
-            <span style={{ fontSize: '0.85rem' }}>
+            <span>
               <span className={`status-dot ${n8nConnected ? 'active' : 'error'}`}></span>
               n8n: {n8nConnected ? 'ONLINE' : 'OFFLINE'}
             </span>
@@ -829,7 +829,7 @@ function App() {
           Admin Telemetry
         </button>
         <button className={`tab-btn ${activeTab === 'ai-center' ? 'active' : ''}`} onClick={() => setActiveTab('ai-center')}>
-          🤖 AI Control Center
+          AI Control Center
         </button>
         <button className={`tab-btn ${activeTab === 'mcp' ? 'active' : ''}`} onClick={() => setActiveTab('mcp')}>
           MCP Server Connect
@@ -839,7 +839,7 @@ function App() {
       {/* Connection Drawer */}
       <div className="glass-panel" style={{ padding: '16px', marginBottom: '32px', borderStyle: 'dashed' }}>
         <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>
-          ⚙️ Connection Endpoints (Local/Production Overrides)
+          Connection Endpoints (Local/Production Overrides)
         </h4>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
@@ -871,7 +871,7 @@ function App() {
           
           {/* Interactive Request Flow Visualizer */}
           <div className="glass-panel pipeline-card">
-            <h3>🧬 API Gateway Traffic Routing Pipeline</h3>
+            <h3>API Gateway Traffic Routing Pipeline</h3>
             <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.82rem' }}>
               Dynamic path monitoring. Highlights active middleware segments during request resolution.
             </p>
@@ -928,34 +928,34 @@ function App() {
           {/* Preset Automation Scenarios */}
           <div>
             <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>
-              🤖 Interactive Scenario Simulator (Demonstrate Pipeline Features)
+              Interactive Scenario Simulator (Demonstrate Pipeline Features)
             </h4>
             <div className="scenario-selector">
               <button 
-                className={`scenario-button ${activeScenario === 'steady' ? 'active' : ''}`}
+                className={`scenario-button steady ${activeScenario === 'steady' ? 'active' : ''}`}
                 onClick={() => triggerScenario('steady')}
               >
-                <div className="scenario-button-title">🟢 Steady Traffic Flow</div>
+                <div className="scenario-button-title"><span className="scenario-dot dot-green" />Steady Traffic Flow</div>
                 <div className="scenario-button-desc">
                   Sends 10 standard requests spaced 1.5s. Demonstrates Redis token bucket replenishing and metrics stabilizing.
                 </div>
               </button>
               
               <button 
-                className={`scenario-button ${activeScenario === 'ddos' ? 'active' : ''}`}
+                className={`scenario-button ddos ${activeScenario === 'ddos' ? 'active' : ''}`}
                 onClick={() => triggerScenario('ddos')}
               >
-                <div className="scenario-button-title">🔴 DDoS Abuse & Auto-Block</div>
+                <div className="scenario-button-title"><span className="scenario-dot dot-red" />DDoS Abuse & Auto-Block</div>
                 <div className="scenario-button-desc">
                   Burst limits to hit 429 rate blocks. n8n workflow logs the abuse and blocks the IP automatically at the IP Guard firewall.
                 </div>
               </button>
 
               <button 
-                className={`scenario-button ${activeScenario === 'auth' ? 'active' : ''}`}
+                className={`scenario-button auth ${activeScenario === 'auth' ? 'active' : ''}`}
                 onClick={() => triggerScenario('auth')}
               >
-                <div className="scenario-button-title">🟡 Authentication Scan Sweep</div>
+                <div className="scenario-button-title"><span className="scenario-dot dot-amber" />Authentication Scan Sweep</div>
                 <div className="scenario-button-desc">
                   Sweeps endpoints with invalid/missing keys to demonstrate credential verification block logic.
                 </div>
@@ -969,7 +969,7 @@ function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {/* Developer Key Registration */}
               <div className="glass-panel">
-                <h3>🔑 Developer Access Credentials Onboarding</h3>
+                <h3>Developer Access Credentials Onboarding</h3>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '20px', fontSize: '0.85rem' }}>
                   Register metadata inside the Redis cache store. Simulates the automated dev workflow.
                 </p>
@@ -1045,7 +1045,7 @@ function App() {
 
               {/* Endpoint Tester */}
               <div className="glass-panel">
-                <h3>📡 API Gateway Route Sandbox Tester</h3>
+                <h3>API Gateway Route Sandbox Tester</h3>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '20px', fontSize: '0.85rem' }}>
                   Execute calls against rate limited gateway routes to test key rules.
                 </p>
@@ -1145,7 +1145,7 @@ function App() {
 
               {/* Node Topology */}
               <div className="glass-panel" style={{ padding: '16px' }}>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>⚡ Token Bucket Vector Matrix</h4>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>Token Bucket Vector Matrix</h4>
                 <p style={{ color: 'var(--text-dim)', margin: '0 0 12px 0', fontSize: '0.78rem' }}>
                   Visual hash vectors: Green (200 OK), Amber (401 Bad API Key), Red (429 Rate Block).
                 </p>
@@ -1189,7 +1189,7 @@ function App() {
           <div className="telemetry-charts-grid">
             {/* Sparkline for traffic rate */}
             <div className="glass-panel telemetry-chart-card">
-              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>📈 Request Rate Timeline</h4>
+              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>Request Rate Timeline</h4>
               <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-dim)' }}>Requests per second (rolling 15s window)</p>
               
               <svg className="telemetry-svg" viewBox="0 0 300 80">
@@ -1224,7 +1224,7 @@ function App() {
 
             {/* Bar Chart for Latencies */}
             <div className="glass-panel telemetry-chart-card">
-              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>⏳ Response Latency Stream</h4>
+              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-blue)' }}>Response Latency Stream</h4>
               <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-dim)' }}>Execution time per transaction (last 15 calls)</p>
               
               <svg className="telemetry-svg" viewBox="0 0 300 80">
@@ -1262,7 +1262,7 @@ function App() {
 
           {/* Redis Database Inspector Panel */}
           <div className="glass-panel">
-            <h3>📦 Live Redis Keyspace Inspector</h3>
+            <h3>Live Redis Keyspace Inspector</h3>
             <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.85rem' }}>
               Inspect cache schemas stored inside memory. Select keys in the sidebar to review active state variables.
             </p>
@@ -1325,7 +1325,7 @@ function App() {
           <div className="dashboard-layout">
             {/* Live Traffic Stream */}
             <div className="glass-panel">
-              <h3>📈 Operational Transaction Logs</h3>
+              <h3>Operational Transaction Logs</h3>
               <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.85rem' }}>
                 Log audit tracking. Pulls metrics from backend proxy history.
               </p>
@@ -1383,7 +1383,7 @@ function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {/* Manually Block IP */}
               <div className="glass-panel">
-                <h3>🚫 Firewall Access IP Block</h3>
+                <h3>Firewall Access IP Block</h3>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '12px', fontSize: '0.82rem' }}>
                   Write IPs to blacklist. Blocked IPs are dropped with a 403 Forbidden intercept.
                 </p>
@@ -1460,7 +1460,7 @@ function App() {
               {/* Glassmorphic Chat Copilot */}
               <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '450px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
-                  <h3 style={{ margin: 0 }}>💬 APIShield AI Copilot</h3>
+                  <h3 style={{ margin: 0 }}>APIShield AI Copilot</h3>
                   <span style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-dim)' }}>
                     Mode: {gatewayConnected ? 'Live Connection' : 'Sandbox Simulation'}
                   </span>
@@ -1504,28 +1504,28 @@ function App() {
                     style={{ cursor: 'pointer', borderStyle: 'dotted' }}
                     onClick={() => setChatInput('Show live metrics')}
                   >
-                    📊 Show metrics
+                    Show metrics
                   </button>
                   <button 
                     className="tag" 
                     style={{ cursor: 'pointer', borderStyle: 'dotted' }}
                     onClick={() => setChatInput('List active API keys')}
                   >
-                    🔑 List keys
+                    List keys
                   </button>
                   <button 
                     className="tag" 
                     style={{ cursor: 'pointer', borderStyle: 'dotted' }}
                     onClick={() => setChatInput('Block IP 192.168.1.150')}
                   >
-                    🛡️ Block 192.168.1.150
+                    Block 192.168.1.150
                   </button>
                   <button 
                     className="tag" 
                     style={{ cursor: 'pointer', borderStyle: 'dotted' }}
                     onClick={() => setChatInput('Set limit of demo-key-123 to 120')}
                   >
-                    ⚡ Set limit to 120
+                    Set limit to 120
                   </button>
                 </div>
                 
@@ -1547,7 +1547,7 @@ function App() {
 
               {/* Security Agent Configuration */}
               <div className="glass-panel">
-                <h3>🛡️ Autonomous Security Agent Configuration</h3>
+                <h3>Autonomous Security Agent Configuration</h3>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '20px', fontSize: '0.82rem' }}>
                   Manage the background daemon heuristics that monitor logs and auto-block attackers.
                 </p>
@@ -1561,7 +1561,7 @@ function App() {
                       style={{ padding: '6px 16px', fontSize: '0.85rem' }}
                       onClick={() => setAgentConfig(prev => ({ ...prev, active: !prev.active }))}
                     >
-                      {agentConfig.active ? '🟢 ACTIVE RUNNING' : '🔴 PAUSED'}
+                      {agentConfig.active ? 'ACTIVE RUNNING' : 'PAUSED'}
                     </button>
                   </div>
                   
@@ -1608,7 +1608,7 @@ function App() {
               
               {/* Multi-Agent Workflow State Diagram */}
               <div className="glass-panel" style={{ padding: '20px' }}>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>🤖 Multi-Agent Orchestration Flow</h4>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>Multi-Agent Orchestration Flow</h4>
                 <p style={{ color: 'var(--text-dim)', margin: '0 0 16px 0', fontSize: '0.78rem' }}>
                   Auditing, mitigating, and reporting incidents reactively when anomalies trigger.
                 </p>
@@ -1709,14 +1709,14 @@ function App() {
                   </div>
                 ) : (
                   <div style={{ padding: '8px 12px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    🟢 Orchestrator is listening on `telemetry:threat_queue`. No active incidents.
+                    Orchestrator is listening on `telemetry:threat_queue`. No active incidents.
                   </div>
                 )}
               </div>
 
               {/* Incident Reports Feed */}
               <div className="glass-panel">
-                <h3>📋 Compiled Incident Reports ({incidentReports.length})</h3>
+                <h3>Compiled Incident Reports ({incidentReports.length})</h3>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.82rem' }}>
                   Markdown logs produced by the multi-agent incident response system.
                 </p>
@@ -1744,7 +1744,7 @@ function App() {
 
               {/* Background Agent Actions Log */}
               <div className="glass-panel">
-                <h3>📜 Heuristics Agent Decisions Feed</h3>
+                <h3>Heuristics Agent Decisions Feed</h3>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.82rem' }}>
                   Capped stack of autonomous decisions committed to telemetry.
                 </p>
@@ -1786,7 +1786,7 @@ function App() {
 
           {/* Seeded API Keys Control Table */}
           <div className="glass-panel">
-            <h3>🔑 API Credentials Active Keyspace ({apiKeysList.length})</h3>
+            <h3>API Credentials Active Keyspace ({apiKeysList.length})</h3>
             <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '0.85rem' }}>
               Manage access permissions. Temporarily suspend key validation to block compromised credentials.
             </p>
@@ -1849,7 +1849,7 @@ function App() {
       {/* ----------------- TAB: MCP SERVER CONNECT ----------------- */}
       {activeTab === 'mcp' && (
         <div className="glass-panel docs-block">
-          <h3>🔌 Model Context Protocol (MCP) Integration Engine</h3>
+          <h3>Model Context Protocol (MCP) Integration Engine</h3>
           <p style={{ color: 'var(--text-primary)', marginBottom: '24px', lineHeight: 1.6 }}>
             APIShield exposes an official **Model Context Protocol (MCP)** endpoint that allows AI assistants (like Claude Desktop or Cursor IDE) to orchestrate administration tasks automatically using natural language instructions.
           </p>
