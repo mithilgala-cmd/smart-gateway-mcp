@@ -205,11 +205,11 @@ The Developer Console is a React dashboard with four tabs: **Developer Sandbox**
 metrics + Redis inspector), **AI Control Center** (copilot + multi-agent
 visualiser), and **MCP Server Connect** (copy-paste MCP configs).
 
-![APIShield Developer Console](docs/assets/console-preview.svg)
+![APIShield Developer Console](docs/assets/developer-console.png)
 
-*Concept preview of the Developer Console. Run the stack locally (below) to see
-the live dashboard — the four cards, request chart, live stream, and threat
-alert are all driven by the gateway's real Redis telemetry.*
+*Screenshot of the actual React Developer Console. Run the stack locally
+(below) to interact with the sandbox, telemetry, AI control center, and MCP
+configuration views.*
 
 ---
 
