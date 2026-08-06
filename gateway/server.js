@@ -7,10 +7,33 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const DEFAULT_CORS_ORIGINS = [
+  'https://smart-gateway-mcp.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
+];
+const CORS_ORIGINS = (process.env.CORS_ORIGINS || DEFAULT_CORS_ORIGINS.join(','))
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || CORS_ORIGINS.includes('*') || CORS_ORIGINS.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-api-key'],
+  credentials: false,
+  optionsSuccessStatus: 204
+};
 
 // Enable JSON parser and CORS
 app.use(express.json());
-app.use(cors());
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Initialize Redis Client
 const redisClient = createClient({ url: REDIS_URL });

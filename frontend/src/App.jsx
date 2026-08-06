@@ -86,7 +86,7 @@ function App() {
   const [selectedRedisKey, setSelectedRedisKey] = useState('rate:limit:demo-key-123');
 
   // Info details popup state
-  const [showTechDetails, setShowTechDetails] = useState(true);
+  const [showTechDetails, setShowTechDetails] = useState(false);
 
   // Update matrix topology flashing
   const triggerMatrixBlink = (statusCode) => {

@@ -182,6 +182,17 @@ test.describe('APIShield Gateway Tests', () => {
     assert.match(response.body.message, /APIShield API Gateway/);
   });
 
+  test('OPTIONS /admin/metrics should allow the deployed Vercel console origin', async () => {
+    const response = await request(app)
+      .options('/admin/metrics')
+      .set('Origin', 'https://smart-gateway-mcp.vercel.app')
+      .set('Access-Control-Request-Method', 'GET')
+      .expect(204);
+
+    assert.strictEqual(response.headers['access-control-allow-origin'], 'https://smart-gateway-mcp.vercel.app');
+    assert.match(response.headers['access-control-allow-methods'], /GET/);
+  });
+
   test('GET /api/v1/resource should block requests without API Key', async () => {
     const response = await request(app)
       .get('/api/v1/resource')
