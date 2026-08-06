@@ -40,8 +40,13 @@ frontend/
 
 ```bash
 npm install
-npm run dev          # Vite dev server → http://localhost:3000
+npm run dev          # Vite dev server → http://localhost:5173
 ```
+
+> Ports: the Vite **dev** server listens on `5173` (Vite's default). When the
+> console runs in Docker it's exposed on **`http://localhost:3000`** instead —
+> nginx serves the same build on port 80 inside the container, mapped to host
+> 3000 (`docker run -p 3000:80` or `docker compose up`).
 
 The console talks to the gateway and n8n. Start those first
 (`npm run gateway` and the n8n webhook from the repo root, or `docker compose up`).

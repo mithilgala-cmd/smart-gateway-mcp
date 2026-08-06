@@ -57,8 +57,13 @@ npm run gateway       # APIShield Gateway  → http://localhost:8000
 npm run mcp           # MCP Admin Server   → stdio (default)
 npm run agent         # Security Agent daemon
 npm run multi-agent   # Multi-Agent Orchestrator daemon
-npm run frontend      # Developer Console  → http://localhost:3000
+npm run frontend      # Developer Console  → http://localhost:5173
 ```
+
+> 💡 Ports in this section are the **local dev** defaults. The gateway, MCP
+> server, and n8n listen on the same ports in every mode; the frontend is the
+> exception — Vite's dev server serves the console on `:5173`, while the Docker
+> Compose build exposes it on `:3000` (see [§2.2](#22-service-map)).
 
 > 💡 The two daemons (`agent`, `multi-agent`) require the gateway to be running
 > and Redis reachable. Start the gateway first.

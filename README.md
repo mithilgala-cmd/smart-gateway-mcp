@@ -305,6 +305,10 @@ cp mcp-server/.env.example mcp-server/.env
 npm run dev:all
 ```
 
+The Developer Console is served by Vite at
+[http://localhost:5173](http://localhost:5173) — Docker serves the same UI on
+[http://localhost:3000](http://localhost:3000) instead (see Option A).
+
 > 💡 `npm run dev:all` uses [concurrently](https://www.npmjs.com/package/concurrently)
 > to run the gateway, the Security Agent, the Multi-Agent Orchestrator, the MCP
 > server, and the frontend together. Individual services can be started with
