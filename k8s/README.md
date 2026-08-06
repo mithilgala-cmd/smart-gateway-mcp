@@ -1,10 +1,10 @@
 # ☸️ APIShield — Production-Ready Kubernetes Manifests
 
 Production-hardened Kubernetes configuration for the APIShield smart gateway
-stack. These manifests upgrade the original demo YAML with **resource limits,
-health probes, secrets management, a dedicated namespace, network policies, an
-ingress controller, horizontal autoscaling, and disruption budgets** — so the
-cluster behaves like a real production environment.
+stack. The manifests include **resource limits, health probes, secrets
+management, a dedicated namespace, network policies, an ingress controller,
+horizontal autoscaling, and disruption budgets** — so the cluster behaves like a
+real production environment.
 
 ## 📦 What's in this directory
 
@@ -14,7 +14,7 @@ cluster behaves like a real production environment.
 | `configmap.yaml` | Non-secret shared config (ports, transport, Redis host) |
 | `secrets.example.yaml` | **Demo** secrets + RSA keys (works out of the box) |
 | `generate-secrets.sh` | Regenerates `secrets.yaml` with fresh credentials |
-| `gateway-deployment.yaml` | API gateway (2 replicas, ClusterIP, probes) |
+| `gateway-deployment.yaml` | API Gateway (2 replicas, ClusterIP, probes) |
 | `frontend-deployment.yaml` | React console behind nginx (2 replicas, ClusterIP) |
 | `mcp-server-deployment.yaml` | MCP admin server (TCP probes, ClusterIP) |
 | `agents-deployment.yaml` | Security Agent + Multi-Agent Orchestrator daemons |

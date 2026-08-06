@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" font-family="'Outfit','Segoe UI',sans-serif">
+  <!-- Background -->
+  <rect width="1200" height="640" fill="#0b1020"/>
+  <rect x="0" y="0" width="1200" height="640" fill="url(#bgGlow)" opacity="0.5"/>
+  <defs>
+    <linearGradient id="bgGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e3a8a" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#4a044e" stop-opacity="0.35"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#863bff"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#141b31"/>
+      <stop offset="100%" stop-color="#10162a"/>
+    </linearGradient>
+    <linearGradient id="chartLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#863bff"/>
+    </linearGradient>
+    <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Navbar -->
+  <rect width="1200" height="64" fill="#0d1428" opacity="0.95"/>
+  <rect y="62" width="1200" height="2" fill="#1c2440"/>
+  <g transform="translate(28,20)">
+    <path d="M9.5 3h17.5l-2 13L18.5 23 9.5 16z" fill="url(#accent)"/>
+    <path d="M14 10.5l-3 3 2 1.8 2.2-2.2v-2z" fill="#fff" opacity="0.0"/>
+    <path d="M16 7.2l-4.2 4.2 1.8 1.8L16 12.8z" fill="#fff"/>
+    <path d="M16 12.8l1.6 1.6-1.6-1.6z" fill="#fff"/>
+    <path d="M16 7.2l4.2 4.2-1.8 1.8L16 12.8z" fill="#0d1428"/>
+  </g>
+  <text x="66" y="30" fill="#f3f6ff" font-size="17" font-weight="700" letter-spacing="0.5">APIShield</text>
+  <text x="66" y="48" fill="#7c89ad" font-size="11.5">Developer Console</text>
+
+  <!-- Tabs -->
+  <g font-size="13" font-weight="500">
+    <rect x="330" y="16" width="168" height="32" rx="7" fill="#1c2850"/>
+    <text x="414" y="36" fill="#8ab4ff" text-anchor="middle">Developer Sandbox</text>
+    <rect x="508" y="16" width="140" height="32" rx="7" fill="#12182e"/>
+    <text x="578" y="36" fill="#8b95b5" text-anchor="middle">Admin Telemetry</text>
+    <rect x="658" y="16" width="150" height="32" rx="7" fill="#12182e"/>
+    <text x="733" y="36" fill="#8b95b5" text-anchor="middle">AI Control Center</text>
+    <rect x="818" y="16" width="160" height="32" rx="7" fill="#12182e"/>
+    <text x="898" y="36" fill="#8b95b5" text-anchor="middle">MCP Server Connect</text>
+  </g>
+
+  <circle cx="1152" cy="32" r="14" fill="#202b4d"/>
+  <circle cx="1152" cy="32" r="6" fill="#34d399"/>
+
+  <!-- Stat cards -->
+  <g filter="url(#shadow)">
+    <!-- Total requests -->
+    <rect x="28" y="92" width="270" height="108" rx="12" fill="url(#card)" stroke="#232c4d"/>
+    <text x="46" y="120" fill="#7c89ad" font-size="12">Total Requests</text>
+    <text x="46" y="158" fill="#f3f6ff" font-size="26" font-weight="700">1,284,503</text>
+    <text x="46" y="180" fill="#34d399" font-size="12">▲ 12.4% this hour</text>
+    <path d="M210 92h88v108h-88z" fill="#38bdf8" opacity="0.06"/>
+    <path d="M222 170q10-18 22-10t22-4 22-14 22 6" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+    <path d="M222 170q10-18 22-10t22-4 22-14 22 6" fill="url(#chartFill)"/>
+  </g>
+
+  <!-- Rate limited -->
+  <rect x="316" y="92" width="270" height="108" rx="12" fill="url(#card)" stroke="#232c4d"/>
+  <text x="334" y="120" fill="#7c89ad" font-size="12">Rate Limited (429)</text>
+  <text x="334" y="158" fill="#fbbf24" font-size="26" font-weight="700">2,415</text>
+  <text x="334" y="180" fill="#f87171" font-size="12">▲ 3.1% vs yesterday</text>
+  <rect x="534" y="110" width="34" height="6" rx="3" fill="#fbbf24" opacity="0.85"/>
+  <rect x="534" y="122" width="20" height="6" rx="3" fill="#fbbf24" opacity="0.6"/>
+  <rect x="534" y="134" width="28" height="6" rx="3" fill="#fbbf24" opacity="0.75"/>
+  <rect x="534" y="146" width="14" height="6" rx="3" fill="#fbbf24" opacity="0.5"/>
+
+  <!-- Unauthorized -->
+  <rect x="604" y="92" width="270" height="108" rx="12" fill="url(#card)" stroke="#232c4d"/>
+  <text x="622" y="120" fill="#7c89ad" font-size="12">Unauthorized (401)</text>
+  <text x="622" y="158" fill="#f87171" font-size="26" font-weight="700">1,180</text>
+  <text x="622" y="180" fill="#34d399" font-size="12">▼ 8.7% this hour</text>
+  <path d="M808 148q12-6 22 2 8-14 16-6v12h-38z" fill="#f87171" opacity="0.25"/>
+
+  <!-- Blocked IPs -->
+  <rect x="892" y="92" width="280" height="108" rx="12" fill="url(#card)" stroke="#232c4d"/>
+  <text x="910" y="120" fill="#7c89ad" font-size="12">Blocked IPs</text>
+  <text x="910" y="158" fill="#a78bfa" font-size="26" font-weight="700">17</text>
+  <text x="910" y="180" fill="#7c89ad" font-size="12">auto-mitigated by Security Agent</text>
+  <circle cx="1132" cy="146" r="16" fill="none" stroke="#232c4d" stroke-width="4"/>
+  <path d="M1132 146m0 0a16 16 0 0 1 16 16" fill="none" stroke="#a78bfa" stroke-width="4" stroke-linecap="round"/>
+  <path d="M1126 142l-4 7 3 2 4-6z" fill="#a78bfa"/>
+
+  <!-- Main panel: chart -->
+  <rect x="28" y="228" width="720" height="384" rx="12" fill="url(#card)" stroke="#232c4d"/>
+  <text x="46" y="258" fill="#f3f6ff" font-size="14" font-weight="600">Request Volume</text>
+  <text x="46" y="278" fill="#7c89ad" font-size="11.5">Live · requests per minute · last 60 min</text>
+
+  <!-- Grid -->
+  <g stroke="#1b2340" stroke-width="1">
+    <line x1="60" y1="330" x2="720" y2="330"/>
+    <line x1="60" y1="390" x2="720" y2="390"/>
+    <line x1="60" y1="450" x2="720" y2="450"/>
+    <line x1="60" y1="510" x2="720" y2="510"/>
+    <line x1="60" y1="570" x2="720" y2="570"/>
+  </g>
+
+  <!-- Area chart -->
+  <path d="M70 560 L70 552 Q110 540 130 546 T190 520 T250 500 T310 480 T370 430 T430 470 T490 420 T550 380 T610 400 T670 340 T700 320 L700 570 Z"
+        fill="url(#chartFill)"/>
+  <path d="M70 560 Q110 540 130 546 T190 520 T250 500 T310 480 T370 430 T430 470 T490 420 T550 380 T610 400 T670 340 T700 320"
+        fill="none" stroke="url(#chartLine)" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="700" cy="320" r="5" fill="#38bdf8"/>
+  <circle cx="700" cy="320" r="9" fill="#38bdf8" opacity="0.25"/>
+
+  <g fill="#7c89ad" font-size="10.5">
+    <text x="70" y="590">−60m</text>
+    <text x="200" y="590">−45m</text>
+    <text x="335" y="590">−30m</text>
+    <text x="470" y="590">−15m</text>
+    <text x="688" y="590">now</text>
+  </g>
+
+  <!-- Right panel: live requests -->
+  <rect x="768" y="228" width="404" height="384" rx="12" fill="url(#card)" stroke="#232c4d"/>
+  <text x="786" y="258" fill="#f3f6ff" font-size="14" font-weight="600">Live Request Stream</text>
+  <circle cx="1148" cy="254" r="5" fill="#34d399"/>
+  <text x="1158" y="258" fill="#7c89ad" font-size="11">LIVE</text>
+
+  <!-- Table head -->
+  <text x="790" y="288" fill="#7c89ad" font-size="10.5">IP</text>
+  <text x="912" y="288" fill="#7c89ad" font-size="10.5">ENDPOINT</text>
+  <text x="1052" y="288" fill="#7c89ad" font-size="10.5">STATUS</text>
+  <line x1="786" y1="296" x2="1156" y2="296" stroke="#1b2340"/>
+
+  <g font-size="11.5">
+    <text x="790" y="320" fill="#9fb0d4" font-mono="monospace">10.0.4.21</text>
+    <text x="912" y="320" fill="#9fb0d4">/api/v1/resource</text>
+    <rect x="1042" y="309" width="52" height="18" rx="4" fill="#0f2b22"/>
+    <text x="1068" y="322" fill="#34d399" text-anchor="middle">200</text>
+
+    <text x="790" y="348" fill="#9fb0d4" font-mono="monospace">10.0.4.21</text>
+    <text x="912" y="348" fill="#9fb0d4">/api/v1/resource</text>
+    <rect x="1042" y="337" width="52" height="18" rx="4" fill="#0f2b22"/>
+    <text x="1068" y="350" fill="#34d399" text-anchor="middle">200</text>
+
+    <text x="790" y="376" fill="#9fb0d4" font-mono="monospace">10.0.7.9</text>
+    <text x="912" y="376" fill="#9fb0d4">/api/v1/info</text>
+    <rect x="1042" y="365" width="52" height="18" rx="4" fill="#0f2b22"/>
+    <text x="1068" y="378" fill="#34d399" text-anchor="middle">200</text>
+
+    <text x="790" y="404" fill="#9fb0d4" font-mono="monospace">198.51.100.3</text>
+    <text x="912" y="404" fill="#9fb0d4">/api/v1/resource</text>
+    <rect x="1042" y="393" width="52" height="18" rx="4" fill="#3a2a14"/>
+    <text x="1068" y="406" fill="#fbbf24" text-anchor="middle">429</text>
+
+    <text x="790" y="432" fill="#9fb0d4" font-mono="monospace">198.51.100.3</text>
+    <text x="912" y="432" fill="#9fb0d4">/api/v1/resource</text>
+    <rect x="1042" y="421" width="52" height="18" rx="4" fill="#3a2a14"/>
+    <text x="1068" y="434" fill="#fbbf24" text-anchor="middle">429</text>
+
+    <text x="790" y="460" fill="#9fb0d4" font-mono="monospace">203.0.113.77</text>
+    <text x="912" y="460" fill="#9fb0d4">/api/v1/resource</text>
+    <rect x="1042" y="449" width="52" height="18" rx="4" fill="#3a1420"/>
+    <text x="1068" y="462" fill="#f87171" text-anchor="middle">401</text>
+  </g>
+
+  <!-- Alert banner -->
+  <rect x="790" y="494" width="368" height="52" rx="8" fill="#2a1730" stroke="#6d28d9" stroke-opacity="0.5"/>
+  <path d="M804 512h22l-11-16z" fill="#c084fc"/>
+  <circle cx="815" cy="516" r="4" fill="#0b1020"/>
+  <text x="840" y="516" fill="#e9d5ff" font-size="12" font-weight="600">Threat detected from 198.51.100.3</text>
+  <text x="840" y="534" fill="#a78bfa" font-size="11">Security Agent blocked IP · Multi-Agent pipeline running</text>
+  <circle cx="1128" cy="518" r="4" fill="#c084fc"/>
+  <circle cx="1140" cy="518" r="4" fill="#c084fc"/>
+  <circle cx="1152" cy="518" r="4" fill="#c084fc"/>
+
+  <g font-size="10.5" fill="#4a5578">
+    <text x="46" y="620">APIShield Developer Console — concept preview. Replace with a real screenshot when running the stack.</text>
+  </g>
+</svg>

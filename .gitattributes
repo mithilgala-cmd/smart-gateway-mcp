@@ -1,0 +1,31 @@
+# Normalise line endings and improve diffs repo-wide
+
+* text=auto
+
+# Source & config files — LF on checkout
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.json      text eol=lf
+*.css       text eol=lf
+*.html      text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.sh        text eol=lf
+*.svg       text eol=lf
+
+# Binary assets must not be normalised
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.woff      binary
+*.woff2     binary
+
+# Shell scripts keep LF even on Windows
+*.sh        text eol=lf
+
+# Linguist hints — hide generated/generated-from-script files from language stats
+k8s/secrets.yaml  linguist-generated=true
+frontend/dist/**  linguist-generated=true

@@ -1,7 +1,7 @@
 {
   "name": "apishield-mcp-server",
   "version": "1.0.0",
-  "description": "Model Context Protocol Admin Server for API Shield Gateway",
+  "description": "Model Context Protocol Admin Server for APIShield Gateway",
   "main": "index.js",
   "type": "module",
   "scripts": {

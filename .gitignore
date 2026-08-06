@@ -40,7 +40,6 @@ k8s/secrets.yaml
 *.njsproj
 *.sln
 *.sw?
-.env
 
 # System Files
 .DS_Store

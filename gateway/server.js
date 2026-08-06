@@ -200,7 +200,7 @@ function handleDownstreamInfo(req, res) {
     timestamp: new Date().toISOString(),
     developer: req.developerName,
     system: {
-      gatewayName: 'API Shield Gateway',
+      gatewayName: 'APIShield Gateway',
       version: '1.0.0',
       uptime: process.uptime()
     }
@@ -612,7 +612,7 @@ if (require.main === module) {
     await seedDefaultKey();
     
     app.listen(PORT, () => {
-      console.log(`API Shield Gateway running on port ${PORT}`);
+      console.log(`APIShield Gateway running on port ${PORT}`);
     });
   })();
 }
